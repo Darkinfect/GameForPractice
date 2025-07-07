@@ -34,10 +34,6 @@ public class MainScreen implements Screen {
         font.draw(batch, "Main Menu", 100, 100);
         batch.end();
 
-//
-//        if (Gdx.input.justTouched()) {
-//            game.setScreen(new GameScreen(game));
-//        }
     }
 
     @Override
