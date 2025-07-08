@@ -1,6 +1,7 @@
 package me.darkinfect;
 import com.badlogic.gdx.Game;
 import com.badlogic.gdx.graphics.g2d.SpriteBatch;
+import me.darkinfect.scenes.MainMenu;
 import me.darkinfect.scenes.MainScene;
 
 public class ClickerGame extends Game{
@@ -8,7 +9,7 @@ public class ClickerGame extends Game{
     @Override
     public void create() {
         batch = new SpriteBatch();
-        setScreen(new MainScene());
+        setScreen(new MainMenu(this));
     }
     @Override
     public void dispose() {

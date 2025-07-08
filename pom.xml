@@ -12,6 +12,9 @@
         <maven.compiler.source>11</maven.compiler.source>
         <maven.compiler.target>11</maven.compiler.target>
     </properties>
+    <build>
+        <defaultGoal>package</defaultGoal>
+    </build>
 
     <dependencies>
         <!-- https://mvnrepository.com/artifact/com.badlogicgames.gdx/gdx-freetype -->
