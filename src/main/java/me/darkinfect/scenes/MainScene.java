@@ -18,8 +18,10 @@ import com.badlogic.gdx.scenes.scene2d.utils.ClickListener;
 import com.badlogic.gdx.scenes.scene2d.utils.TextureRegionDrawable;
 import com.badlogic.gdx.utils.Align;
 import com.badlogic.gdx.utils.Timer;
+import me.darkinfect.Main;
 
 public class MainScene implements Screen {
+    private static MainScene intsance;
     private Game game;
     private Skin skin;
     private SpriteBatch batch;
@@ -27,7 +29,7 @@ public class MainScene implements Screen {
     private Stage stage = new Stage();
     private ImageButton coinButton;
     private Label coinLabel;
-    private int coins = 0;
+    private static int coins = 0;
     private ImageButton menuButton;
     private Table menu;
     private boolean isMenuVisible = false;
@@ -48,6 +50,21 @@ public class MainScene implements Screen {
     public MainScene(Game game){
         this.game = game;
     }
+    public static void addCoin(int count){
+        coins +=count;
+        return;
+    }
+
+    public static MainScene getIntsance(Game game1){
+        if(intsance == null){
+            intsance = new MainScene(game1);
+            return intsance;
+        }
+        return intsance;
+    }
+    public static MainScene getIntsance1(){
+        return intsance;
+    }
     @Override
     public void show() {
         backgroundTexture = new Texture(Gdx.files.internal("background.jpg"));
@@ -56,7 +73,6 @@ public class MainScene implements Screen {
 
         initButton();
         initMenu();
-//        initBossSystem();
         initUI();
 
         Gdx.input.setInputProcessor(stage);
@@ -72,95 +88,9 @@ public class MainScene implements Screen {
         stage.addActor(coinLabel);
     }
 
-    /* private void initBossSystem() {
-        // Текстура босса
-        bossTexture = new Texture(Gdx.files.internal("boss.jpg")); // Добавьте файл boss.png в assets
-        bossImage = new Image(bossTexture);
-        bossImage.setVisible(false);
-        bossImage.setSize(300, 300);
-        bossImage.setPosition(
-                Gdx.graphics.getWidth()/2 - bossImage.getWidth()/2,
-                Gdx.graphics.getHeight()/2 - bossImage.getHeight()/2 + 100
-        );
-        stage.addActor(bossImage);
-
-        // UI босса
-        bossUI = new Table();
-        bossUI.setBackground(new TextureRegionDrawable(new TextureRegion(createWhitePixel(Color.DARK_GRAY))));
-        bossUI.setVisible(false);
-        bossUI.setPosition(Gdx.graphics.getWidth()/2 - 150, 50);
-        bossUI.setSize(300, 100);
-
-        // Шкала здоровья босса
-        ProgressBar.ProgressBarStyle healthBarStyle = new ProgressBar.ProgressBarStyle(
-                skin.newDrawable("white", Color.RED),
-                skin.newDrawable("white", Color.GREEN)
-        );
-        healthBarStyle.knobBefore = healthBarStyle.knob;
-        bossHealthBar = new ProgressBar(0, bossMaxHp, 1, false, healthBarStyle);
-        bossHealthBar.setValue(bossMaxHp);
-        bossHealthBar.setSize(280, 30);
-
-        // Таймер босса
-        Label.LabelStyle bossLabelStyle = new Label.LabelStyle();
-        bossLabelStyle.font = new BitmapFont();
-        bossLabelStyle.fontColor = Color.WHITE;
-        bossTimerLabel = new Label("Time: " + (int)bossTimeLeft, bossLabelStyle);
-
-        bossUI.add(new Label("BOSS FIGHT!", bossLabelStyle)).colspan(2).row();
-        bossUI.add(bossHealthBar).colspan(2).padBottom(5).row();
-        bossUI.add(bossTimerLabel);
-
-        stage.addActor(bossUI);
-    }*/
-
     private void startBossFight() {
-        game.setScreen(new BossFightScene());
-//        bossActive = true;
-//        bossMaxHp = 10 + 50 * playerLevel;
-//        bossHp = bossMaxHp;
-//        bossTimeLeft = 30f;
-//        clicksToBoss = 0;
-//
-//        bossImage.setVisible(true);
-//        bossUI.setVisible(true);
-//        bossHealthBar.setRange(0, bossMaxHp);
-//        bossHealthBar.setValue(bossHp);
-//
-//        // Анимация появления
-//        bossImage.setColor(1, 1, 1, 0);
-//        bossImage.addAction(Actions.fadeIn(1f));
-//
-//        // Запуск таймера босса
-//        Timer.schedule(new Timer.Task() {
-//            @Override
-//            public void run() {
-//                bossTimeLeft -= 1f;
-//                bossTimerLabel.setText("Time: " + (int)bossTimeLeft);
-//
-//                if (bossTimeLeft <= 0) {
-//                    endBossFight(false);
-//                }
-//            }
-//        }, 0, 1, (int)bossTimeLeft);
-    }
-
-    private void endBossFight(boolean victory) {
-        bossActive = false;
-        bossImage.setVisible(false);
-        bossUI.setVisible(false);
-
-        if (victory) {
-            int reward = 50 * playerLevel;
-            coins += reward;
-            coinLabel.setText("Coins: " + coins);
-
-            // Показать сообщение о победе
-            showMessage("Win! +" + reward + " money");
-            playerLevel++;
-        } else {
-            showMessage("Boss leave!");
-        }
+        coinLabel.clear();
+        game.setScreen(new BossFightScene(game));
     }
 
     private void showMessage(String text) {
@@ -190,11 +120,6 @@ public class MainScene implements Screen {
         batch.begin();
         batch.draw(backgroundTexture, 0, 0, Gdx.graphics.getWidth(), Gdx.graphics.getHeight());
         batch.end();
-
-        if (bossActive) {
-            bossHealthBar.setValue(bossHp);
-        }
-
         stage.act(delta);
         stage.draw();
     }
@@ -216,7 +141,7 @@ public class MainScene implements Screen {
         menu.setPosition(20, Gdx.graphics.getHeight() - 150);
         menu.setVisible(false);
 
-        TextButton button1 = new TextButton("New Game", skin);
+        TextButton button1 = new TextButton("Upgrades", skin);
         TextButton button2 = new TextButton("Settings", skin);
         TextButton button3 = new TextButton("Exit", skin);
 
@@ -229,6 +154,17 @@ public class MainScene implements Screen {
             public void clicked(InputEvent event, float x, float y) {
                 isMenuVisible = !isMenuVisible;
                 menu.setVisible(isMenuVisible);
+            }
+        });
+        button1.addListener(new ClickListener(){
+            @Override
+            public void clicked(InputEvent event, float x, float y){
+                if(coins < 10){
+                    return;
+                }
+                coins -= 10;
+                BossFightScene.addplayerlevel(1);
+
             }
         });
 
@@ -264,19 +200,13 @@ public class MainScene implements Screen {
             @Override
             public void clicked(InputEvent event, float x, float y) {
                 coins++;
-                coinLabel.setText("Coins: " + coins);
+                updateLabelCoin();
 
                 // Система вызова босса
                 if (!bossActive) {
                     clicksToBoss++;
                     if (clicksToBoss >= BOSS_TRIGGER_CLICKS || Math.random() < 0.05) {
                         startBossFight();
-                    }
-                } else {
-                    // Урон по боссу
-                    bossHp -= 1 + playerLevel/5;
-                    if (bossHp <= 0) {
-                        endBossFight(true);
                     }
                 }
             }
@@ -293,7 +223,9 @@ public class MainScene implements Screen {
         pixmap.dispose();
         return texture;
     }
-
+    public void updateLabelCoin(){
+        coinLabel.setText("Coins: " + coins);
+    }
     @Override
     public void resize(int width, int height) {
         stage.getViewport().update(width, height, true);
