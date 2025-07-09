@@ -19,6 +19,7 @@ import com.badlogic.gdx.scenes.scene2d.utils.TextureRegionDrawable;
 import com.badlogic.gdx.utils.Align;
 import com.badlogic.gdx.utils.Timer;
 import me.darkinfect.Main;
+import java.util.ArrayList;
 
 public class MainScene implements Screen {
     private static MainScene intsance;
@@ -60,6 +61,11 @@ public class MainScene implements Screen {
     private Label upgradeResultLabel;
     private Table upgradesSubMenu;
     private boolean isUpgradesSubMenuVisible = false;
+    private ArrayList<Achievement> achievements = new ArrayList<>();
+    private int totalClicks = 0;
+    private int upgradesBought = 0;
+    private int bossesKilled = 0;
+    // --- Переменные для ачивок ---
     public MainScene(Game game){
         this.game = game;
     }
@@ -83,6 +89,14 @@ public class MainScene implements Screen {
         backgroundTexture = new Texture(Gdx.files.internal("background.jpg"));
         batch = new SpriteBatch();
         skin = new Skin();
+
+        // --- Инициализация ачивок ---
+        achievements.clear();
+        achievements.add(new Achievement("First Click!", "Make your first click."));
+        achievements.add(new Achievement("Click Master", "Make 1000 clicks."));
+        achievements.add(new Achievement("Boss Slayer", "Defeat a boss for the first time."));
+        achievements.add(new Achievement("Upgrade Fan", "Buy 5 upgrades."));
+        achievements.add(new Achievement("Wealthy", "Accumulate 1000 coins."));
 
         initButton();
         initMenu();
@@ -265,6 +279,8 @@ public class MainScene implements Screen {
                     }
                     updateLabelCoin();
                     upgradeResultLabel.setText(result);
+                    upgradesBought++;
+                    checkAchievements();
                 } else {
                     upgradeResultLabel.setText("Недостаточно монет!");
                 }
@@ -316,18 +332,14 @@ public class MainScene implements Screen {
             public void clicked(InputEvent event, float x, float y) {
                 coins += upgradeCoinsPerClick;
                 updateLabelCoin();
-
-                // Система вызова босса
-                if (!bossActive) {
-                    clicksToBoss++;
-                    if (clicksToBoss >= BOSS_TRIGGER_CLICKS || Math.random() < 0.05) {
-                        startBossFight();
-                    }
-                }
+                totalClicks++;
+                checkAchievements();
             }
         });
 
         stage.addActor(coinButton);
+
+        // summonBossButton удалён, чтобы не было ошибки TextButtonStyle
     }
 
     private void initUpgradesSubMenu() {
@@ -428,6 +440,21 @@ public class MainScene implements Screen {
     }
     public void updateLabelCoin(){
         coinLabel.setText("Coins: " + coins);
+    }
+    private void checkAchievements() {
+        for (Achievement a : achievements) {
+            if (!a.isUnlocked()) {
+                if (a.getName().equals("First Click!") && totalClicks >= 1) unlockAchievement(a);
+                if (a.getName().equals("Click Master") && totalClicks >= 1000) unlockAchievement(a);
+                if (a.getName().equals("Boss Slayer") && bossesKilled >= 1) unlockAchievement(a);
+                if (a.getName().equals("Upgrade Fan") && upgradesBought >= 5) unlockAchievement(a);
+                if (a.getName().equals("Wealthy") && coins >= 1000) unlockAchievement(a);
+            }
+        }
+    }
+    private void unlockAchievement(Achievement a) {
+        a.unlock();
+        showMessage("Achievement unlocked: " + a.getName());
     }
     @Override
     public void resize(int width, int height) {
