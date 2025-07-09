@@ -1,5 +1,6 @@
 package me.darkinfect.scenes;
 
+import com.badlogic.gdx.Game;
 import com.badlogic.gdx.Gdx;
 import com.badlogic.gdx.Screen;
 import com.badlogic.gdx.graphics.Color;
@@ -19,6 +20,7 @@ import com.badlogic.gdx.utils.Align;
 import com.badlogic.gdx.utils.Timer;
 
 public class MainScene implements Screen {
+    private Game game;
     private Skin skin;
     private SpriteBatch batch;
     private Texture backgroundTexture;
@@ -43,7 +45,9 @@ public class MainScene implements Screen {
     private int clicksToBoss = 0;
     private final int BOSS_TRIGGER_CLICKS = 150;
     private int playerLevel = 1;
-
+    public MainScene(Game game){
+        this.game = game;
+    }
     @Override
     public void show() {
         backgroundTexture = new Texture(Gdx.files.internal("background.jpg"));
@@ -52,7 +56,7 @@ public class MainScene implements Screen {
 
         initButton();
         initMenu();
-        initBossSystem();
+//        initBossSystem();
         initUI();
 
         Gdx.input.setInputProcessor(stage);
@@ -68,7 +72,7 @@ public class MainScene implements Screen {
         stage.addActor(coinLabel);
     }
 
-    private void initBossSystem() {
+    /* private void initBossSystem() {
         // Текстура босса
         bossTexture = new Texture(Gdx.files.internal("boss.jpg")); // Добавьте файл boss.png в assets
         bossImage = new Image(bossTexture);
@@ -108,36 +112,37 @@ public class MainScene implements Screen {
         bossUI.add(bossTimerLabel);
 
         stage.addActor(bossUI);
-    }
+    }*/
 
     private void startBossFight() {
-        bossActive = true;
-        bossMaxHp = 10 + 50 * playerLevel;
-        bossHp = bossMaxHp;
-        bossTimeLeft = 30f;
-        clicksToBoss = 0;
-
-        bossImage.setVisible(true);
-        bossUI.setVisible(true);
-        bossHealthBar.setRange(0, bossMaxHp);
-        bossHealthBar.setValue(bossHp);
-
-        // Анимация появления
-        bossImage.setColor(1, 1, 1, 0);
-        bossImage.addAction(Actions.fadeIn(1f));
-
-        // Запуск таймера босса
-        Timer.schedule(new Timer.Task() {
-            @Override
-            public void run() {
-                bossTimeLeft -= 1f;
-                bossTimerLabel.setText("Time: " + (int)bossTimeLeft);
-
-                if (bossTimeLeft <= 0) {
-                    endBossFight(false);
-                }
-            }
-        }, 0, 1, (int)bossTimeLeft);
+        game.setScreen(new BossFightScene());
+//        bossActive = true;
+//        bossMaxHp = 10 + 50 * playerLevel;
+//        bossHp = bossMaxHp;
+//        bossTimeLeft = 30f;
+//        clicksToBoss = 0;
+//
+//        bossImage.setVisible(true);
+//        bossUI.setVisible(true);
+//        bossHealthBar.setRange(0, bossMaxHp);
+//        bossHealthBar.setValue(bossHp);
+//
+//        // Анимация появления
+//        bossImage.setColor(1, 1, 1, 0);
+//        bossImage.addAction(Actions.fadeIn(1f));
+//
+//        // Запуск таймера босса
+//        Timer.schedule(new Timer.Task() {
+//            @Override
+//            public void run() {
+//                bossTimeLeft -= 1f;
+//                bossTimerLabel.setText("Time: " + (int)bossTimeLeft);
+//
+//                if (bossTimeLeft <= 0) {
+//                    endBossFight(false);
+//                }
+//            }
+//        }, 0, 1, (int)bossTimeLeft);
     }
 
     private void endBossFight(boolean victory) {
