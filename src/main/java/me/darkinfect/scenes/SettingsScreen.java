@@ -36,9 +36,11 @@ public class SettingsScreen implements Screen {
         stage = new Stage(new ScreenViewport());
         Gdx.input.setInputProcessor(stage);
 
-        // Создаем скин
+        // Загружаем настройки при открытии экрана
+        loadSettings();
+
+        // Используем только стандартный скин!
         skin = new Skin(Gdx.files.internal("uiskin.json"));
-        skin.add("default", new BitmapFont());
 
         // Стиль для заголовка
         Label.LabelStyle titleStyle = new Label.LabelStyle();
@@ -67,7 +69,7 @@ public class SettingsScreen implements Screen {
             @Override
             public void changed(ChangeEvent event, Actor actor) {
                 soundEnabled = soundCheckbox.isChecked();
-                // Здесь можно добавить логику включения/выключения звука
+                saveSettings();
             }
         });
 
@@ -78,6 +80,7 @@ public class SettingsScreen implements Screen {
             @Override
             public void changed(ChangeEvent event, Actor actor) {
                 vibrationEnabled = vibrationCheckbox.isChecked();
+                saveSettings();
             }
         });
 
@@ -89,7 +92,7 @@ public class SettingsScreen implements Screen {
             @Override
             public void changed(ChangeEvent event, Actor actor) {
                 musicVolume = musicSlider.getValue();
-                // Здесь можно обновить громкость музыки
+                saveSettings();
             }
         });
 
@@ -101,7 +104,7 @@ public class SettingsScreen implements Screen {
             @Override
             public void changed(ChangeEvent event, Actor actor) {
                 soundVolume = soundSlider.getValue();
-                // Здесь можно обновить громкость звуков
+                saveSettings();
             }
         });
 

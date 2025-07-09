@@ -16,13 +16,15 @@ import java.util.Iterator;
 
 import java.awt.*;
 import java.util.ArrayList;
+import com.badlogic.gdx.graphics.g2d.BitmapFont;
+import com.badlogic.gdx.scenes.scene2d.ui.Skin;
 
 public class BossFightScene implements Screen {
     private Game game;
     private SpriteBatch batch;
     private Texture playerTexture, bossTexture, projectileTexture, background;
     private Rectangle player, boss;
-    private ArrayList<Rectangle> playerProjectiles, bossProjectiles;
+    private ArrayList<Bullet> playerProjectiles, bossProjectiles;
     private ArrayList<Rectangle> minions;
     // Константы скоростей
     private static final float PLAYER_PROJECTILE_SPEED = 400f;
@@ -32,12 +34,49 @@ public class BossFightScene implements Screen {
     private int minionsDefeated = 0;
     private final int MINIONS_TO_DEFEAT = 4;
     private boolean isBossActive = false;
+    private int currentMinionIndex = 0; // Индекс текущего приспешника
+    private boolean isMinionActive = true; // Флаг: сейчас бой с приспешником
+    private static final int MINION_REWARD = 25;
+    private static final int BOSS_REWARD = 100;
+    private float minionAttackTimer = 0f;
+    private float bossAttackTimer = 0f;
+    private int bossAttackPhase = 0;
+    private final float MINION_ATTACK_INTERVAL = 1.0f;
+    private final float BOSS_ATTACK_INTERVAL = 0.2f;
+    private final float BOSS_PHASE_INTERVAL = 5.0f;
+    private static final float PLAYER_SPEED = 200f;
+    private int playerHealth = 5;
+    private int minionHealth = 20;
+    private final int minionMaxHealth = 20;
+    private final int bossMaxHealth = 100;
+    
+    // Для анимации полосы здоровья
+    private float displayedPlayerHealth = 5;
+    private float displayedBossHealth = bossMaxHealth;
+    private float displayedMinionHealth = minionMaxHealth;
+    private float playerHitFlash = 0f;
+    private float bossHitFlash = 0f;
+    private float defeatMessageTimer = 0f;
+    private boolean showDefeatMessage = false;
+    private BitmapFont messageFont;
+    private Skin skin;
+
     public static void addplayerlevel(int value){
         playerLevel+=value;
         MainScene.getIntsance1().updateLabelCoin();
     }
 
-    public BossFightScene(Game game) {
+    // Внутренний класс Bullet
+    private static class Bullet {
+        Rectangle hitbox;
+        Vector2 velocity;
+        Bullet(float x, float y, float vx, float vy) {
+            this.hitbox = new Rectangle(x, y, 16, 16);
+            this.velocity = new Vector2(vx, vy);
+        }
+    }
+
+    public BossFightScene(Game game, int minionIndex) {
         batch = new SpriteBatch();
         playerTexture = new Texture("ship.png");
         bossTexture = new Texture("boss.jpg");
@@ -60,8 +99,31 @@ public class BossFightScene implements Screen {
         playerProjectiles = new ArrayList<>();
         bossProjectiles = new ArrayList<>();
         minions = new ArrayList<>();
-        this.game= game;
-        spawnMinions();
+        this.game = game;
+        this.currentMinionIndex = minionIndex;
+        this.isMinionActive = (minionIndex < MINIONS_TO_DEFEAT);
+        this.isBossActive = (minionIndex >= MINIONS_TO_DEFEAT);
+        if (isMinionActive) {
+            spawnSingleMinion(currentMinionIndex);
+        }
+        this.bossHealth = bossMaxHealth;
+        this.minionHealth = minionMaxHealth;
+        // Используем шрифт из uiskin, поддерживающий кириллицу
+        skin = new Skin(Gdx.files.internal("uiskin.json"));
+        messageFont = skin.getFont("default-font");
+    }
+    // Старый конструктор для обратной совместимости
+    public BossFightScene(Game game) {
+        this(game, 0);
+    }
+    // Спавн только одного приспешника по индексу
+    private void spawnSingleMinion(int index) {
+        minions.clear();
+        minions.add(new Rectangle(
+                Gdx.graphics.getWidth() / 2f - 40,
+                Gdx.graphics.getHeight() - 150,
+                80, 80
+        ));
     }
 
     private void spawnMinions() {
@@ -77,6 +139,22 @@ public class BossFightScene implements Screen {
 
     @Override
     public void render(float delta) {
+        if (showDefeatMessage) {
+            defeatMessageTimer -= delta;
+            Gdx.gl.glClear(GL20.GL_COLOR_BUFFER_BIT);
+            batch.begin();
+            // Используем messageFont для кириллицы
+            String msg = "Вы потерпели поражение! -30 золота.\nПриспешники начинаются заново.";
+            messageFont.getData().setScale(1.5f);
+            messageFont.setColor(1, 0.2f, 0.2f, 1);
+            messageFont.draw(batch, msg, Gdx.graphics.getWidth()/2f - 250, Gdx.graphics.getHeight()/2f + 30);
+            batch.end();
+            if (defeatMessageTimer <= 0f) {
+                showDefeatMessage = false;
+                game.setScreen(MainScene.getIntsance(game));
+            }
+            return;
+        }
         update(delta);
 
         // Отрисовка
@@ -96,89 +174,168 @@ public class BossFightScene implements Screen {
         }
 
         // Пули игрока
-        for (Rectangle projectile : playerProjectiles) {
-            batch.draw(projectileTexture, projectile.x, projectile.y, 16, 16);
+        for (Bullet projectile : playerProjectiles) {
+            batch.draw(projectileTexture, projectile.hitbox.x, projectile.hitbox.y, 16, 16);
         }
 
         // Пули босса
-        for (Rectangle projectile : bossProjectiles) {
-            batch.draw(projectileTexture, projectile.x, projectile.y, 16, 16);
+        for (Bullet projectile : bossProjectiles) {
+            batch.draw(projectileTexture, projectile.hitbox.x, projectile.hitbox.y, 16, 16);
         }
 
+        // --- Анимация полосы здоровья ---
+        float interp = 8f * delta;
+        displayedPlayerHealth += (playerHealth - displayedPlayerHealth) * interp;
+        displayedBossHealth += (bossHealth - displayedBossHealth) * interp;
+        displayedMinionHealth += (minionHealth - displayedMinionHealth) * interp;
+        if (Math.abs(displayedPlayerHealth - playerHealth) < 0.1f) displayedPlayerHealth = playerHealth;
+        if (Math.abs(displayedBossHealth - bossHealth) < 0.1f) displayedBossHealth = bossHealth;
+        if (Math.abs(displayedMinionHealth - minionHealth) < 0.1f) displayedMinionHealth = minionHealth;
+        // --- Вспышки при уроне ---
+        if (playerHitFlash > 0f) {
+            batch.setColor(1, 0.5f, 0.5f, 1);
+            playerHitFlash -= delta;
+        } else {
+            batch.setColor(1, 1, 1, 1);
+        }
+        // --- Полоса здоровья игрока ---
+        float barWidth = 200f;
+        float barHeight = 20f;
+        float px = 40f; // Слева
+        float py = Gdx.graphics.getHeight() - 120f; // Чуть ниже верха
+        batch.setColor(0.8f, 0.8f, 0.8f, 1); // светлый фон полосы
+        batch.draw(background, px, py, barWidth, barHeight);
+        batch.setColor(0.5f, 1f, 0.5f, 1); // ярко-зелёная полоса
+        batch.draw(background, px, py, barWidth * (displayedPlayerHealth/5f), barHeight);
+        batch.setColor(1, 1, 1, 1);
+        // --- Полоса здоровья босса/приспешника ---
+        if (bossHitFlash > 0f) {
+            batch.setColor(0.7f, 1f, 0.7f, 1);
+            bossHitFlash -= delta;
+        } else {
+            batch.setColor(1, 1, 1, 1);
+        }
+        float by = Gdx.graphics.getHeight() - 80f;
+        float maxHP = isBossActive ? bossMaxHealth : minionMaxHealth;
+        float curHP = isBossActive ? displayedBossHealth : displayedMinionHealth;
+        batch.setColor(0.8f, 0.8f, 0.8f, 1); // светлый фон полосы
+        batch.draw(background, px, by, barWidth, barHeight);
+        batch.setColor(1f, 0.5f, 0.5f, 1); // ярко-красная полоса
+        batch.draw(background, px, by, barWidth * (curHP/maxHP), barHeight);
+        batch.setColor(1, 1, 1, 1);
+        // --- Текстовое отображение ---
+        BitmapFont font = new BitmapFont();
+        String bossText = isBossActive ? ("Boss HP: " + bossHealth + "/" + bossMaxHealth) : ("Minion HP: " + minionHealth + "/" + minionMaxHealth);
+        font.draw(batch, bossText, px, by + barHeight + 22);
+        font.draw(batch, "Player HP: " + playerHealth, px, py + barHeight + 22);
         batch.end();
     }
 
     private void update(float delta) {
         handleInput();
         updateProjectiles();
-        updateBossAI();
+        if (isMinionActive) {
+            updateMinionAttackPattern(delta);
+        } else if (isBossActive) {
+            updateBossAttackPattern(delta);
+        }
         checkCollisions();
     }
 
     private void handleInput() {
-        // Движение игрока
-        if (Gdx.input.isKeyPressed(Input.Keys.LEFT)) {
-            player.x -= 200 * Gdx.graphics.getDeltaTime();
+        float moveX = 0f;
+        float moveY = 0f;
+        if (Gdx.input.isKeyPressed(Input.Keys.LEFT) || Gdx.input.isKeyPressed(Input.Keys.A)) {
+            moveX -= 1f;
         }
-        if (Gdx.input.isKeyPressed(Input.Keys.RIGHT)) {
-            player.x += 200 * Gdx.graphics.getDeltaTime();
+        if (Gdx.input.isKeyPressed(Input.Keys.RIGHT) || Gdx.input.isKeyPressed(Input.Keys.D)) {
+            moveX += 1f;
         }
-
+        if (Gdx.input.isKeyPressed(Input.Keys.UP) || Gdx.input.isKeyPressed(Input.Keys.W)) {
+            moveY += 1f;
+        }
+        if (Gdx.input.isKeyPressed(Input.Keys.DOWN) || Gdx.input.isKeyPressed(Input.Keys.S)) {
+            moveY -= 1f;
+        }
+        // Нормализация для диагоналей
+        if (moveX != 0 || moveY != 0) {
+            float len = (float)Math.sqrt(moveX*moveX + moveY*moveY);
+            moveX /= len;
+            moveY /= len;
+            player.x += moveX * PLAYER_SPEED * Gdx.graphics.getDeltaTime();
+            player.y += moveY * PLAYER_SPEED * Gdx.graphics.getDeltaTime();
+            // Ограничение рамками экрана
+            if (player.x < 0) player.x = 0;
+            if (player.x + player.width > Gdx.graphics.getWidth()) player.x = Gdx.graphics.getWidth() - player.width;
+            if (player.y < 0) player.y = 0;
+            if (player.y + player.height > Gdx.graphics.getHeight()) player.y = Gdx.graphics.getHeight() - player.height;
+        }
         // Стрельба (Пробел)
         if (Gdx.input.isKeyJustPressed(Input.Keys.SPACE)) {
-            playerProjectiles.add(new Rectangle(
-                    player.x + player.width / 2 - 8,
-                    player.y + player.height,
-                    16, 16
+            playerProjectiles.add(new Bullet(
+                player.x + player.width / 2 - 8,
+                player.y + player.height,
+                0,
+                PLAYER_PROJECTILE_SPEED
             ));
         }
     }
 
 
     private void checkCollisions() {
-        // Проверка попаданий игрока по миньонам/боссу
-        Iterator<Rectangle> projectileIter = playerProjectiles.iterator();
+        Iterator<Bullet> projectileIter = playerProjectiles.iterator();
         while (projectileIter.hasNext()) {
-            Rectangle projectile = projectileIter.next();
-
-            if (!isBossActive) {
-                // Столкновения с миньонами
+            Bullet projectile = projectileIter.next();
+            if (isMinionActive) {
                 Iterator<Rectangle> minionIter = minions.iterator();
                 while (minionIter.hasNext()) {
                     Rectangle minion = minionIter.next();
-                    if (projectile.overlaps(minion)) {
-                        minionIter.remove();
+                    if (projectile.hitbox.overlaps(minion)) {
                         projectileIter.remove();
-                        minionsDefeated++;
-
-                        if (minionsDefeated >= MINIONS_TO_DEFEAT) {
-                            isBossActive = true;
+                        minionHealth -= 5 * playerLevel;
+                        bossHitFlash = 0.5f;
+                        if (minionHealth <= 0) {
+                            minionIter.remove();
+                            MainScene.addCoin(MINION_REWARD);
+                            MainScene.getIntsance1().updateLabelCoin();
+                            MainScene.getIntsance1().minionStage++;
+                            game.setScreen(MainScene.getIntsance(game));
+                            return;
                         }
                         break;
                     }
                 }
-            } else {
-                // Столкновения с боссом
-                if (projectile.overlaps(boss)) {
-                    bossHealth -= 5 * playerLevel; // Урон зависит от уровня
+            } else if (isBossActive) {
+                if (projectile.hitbox.overlaps(boss)) {
+                    bossHealth -= 5 * playerLevel;
+                    bossHitFlash = 0.5f;
                     projectileIter.remove();
-
                     if (bossHealth <= 0) {
-                        // Победа!
-                        Gdx.app.log("BossFight", "BOSS DEFEATED!");
-                        MainScene.addCoin(100);
+                        MainScene.addCoin(BOSS_REWARD);
                         MainScene.getIntsance1().updateLabelCoin();
+                        MainScene.getIntsance1().minionStage = 0;
                         game.setScreen(MainScene.getIntsance(game));
+                        return;
                     }
                 }
             }
         }
-
-        // Проверка попаданий босса по игроку
-        for (Rectangle projectile : bossProjectiles) {
-            if (projectile.overlaps(player)) {
-                // Урон игроку
+        for (Bullet projectile : bossProjectiles) {
+            if (projectile.hitbox.overlaps(player)) {
+                playerHealth--;
+                playerHitFlash = 0.5f;
+                bossProjectiles.remove(projectile);
                 Gdx.app.log("BossFight", "Player hit!");
+                if (playerHealth <= 0) {
+                    // Проигрыш: сообщение, минус 30 золота, сброс minionStage
+                    int lost = Math.min(30, MainScene.getIntsance1().coins);
+                    MainScene.getIntsance1().coins -= lost;
+                    MainScene.getIntsance1().updateLabelCoin();
+                    MainScene.getIntsance1().minionStage = 0;
+                    showDefeatMessage = true;
+                    defeatMessageTimer = 2f;
+                    return;
+                }
                 break;
             }
         }
@@ -231,10 +388,11 @@ public class BossFightScene implements Screen {
     private void updateMinionAttacks() {
         if (Math.random() < 0.02) {
             for (Rectangle minion : minions) {
-                bossProjectiles.add(new Rectangle(
-                        minion.x + minion.width / 2 - 8,
-                        minion.y,
-                        16, 16
+                bossProjectiles.add(createProjectile(
+                    minion.x + minion.width / 2 - 8,
+                    minion.y,
+                    0,
+                    -BOSS_PROJECTILE_SPEED
                 ));
             }
         }
@@ -259,12 +417,15 @@ public class BossFightScene implements Screen {
 
         for (int i = 0; i < count; i++) {
             float angle = startAngle + angleStep*i;
-            bossProjectiles.add(new Rectangle(
+            float rad = (float)Math.toRadians(angle);
+            float vx = (float)Math.sin(rad) * BOSS_PROJECTILE_SPEED;
+            float vy = (float)Math.cos(rad) * -BOSS_PROJECTILE_SPEED;
+            bossProjectiles.add(createProjectile(
                     boss.x + boss.width/2 - 8,
                     boss.y,
-                    16, 16
+                    vx,
+                    vy
             ));
-            // Направление сохраняется через угол, но скорость постоянная
         }
     }
 
@@ -298,11 +459,13 @@ public class BossFightScene implements Screen {
         for (int i = 0; i < count; i++) {
             float angle = i * angleStep;
             float rad = (float)Math.toRadians(angle);
+            float vx = (float)Math.cos(rad) * speed;
+            float vy = (float)Math.sin(rad) * speed;
             bossProjectiles.add(createProjectile(
                     boss.x + boss.width/2 - 8,
                     boss.y,
-                    (float)Math.sin(rad) * speed,
-                    (float)Math.cos(rad) * -speed
+                    vx,
+                    vy
             ));
         }
     }
@@ -330,29 +493,110 @@ public class BossFightScene implements Screen {
         }
     }
 
-    private Rectangle createProjectile(float x, float y, float velX, float velY) {
-        Rectangle projectile = new Rectangle(x, y, 16, 16);
-//        projectile.setUserObject(new Vector2(velX, velY));
-        return projectile;
+    private Bullet createProjectile(float x, float y, float velX, float velY) {
+        return new Bullet(x, y, velX, velY);
     }
 
-    // Обновленный метод updateProjectiles():
-    private void updateProjectiles() {
-        // Пули игрока
-        Iterator<Rectangle> iter = playerProjectiles.iterator();
-        while (iter.hasNext()) {
-            Rectangle projectile = iter.next();
-            projectile.y += PLAYER_PROJECTILE_SPEED * Gdx.graphics.getDeltaTime();
-            if (projectile.y > Gdx.graphics.getHeight()) iter.remove();
+    // --- Новый метод: атаки приспешников по паттерну ---
+    private void updateMinionAttackPattern(float delta) {
+        minionAttackTimer += delta;
+        if (minionAttackTimer >= MINION_ATTACK_INTERVAL && !minions.isEmpty()) {
+            minionAttackTimer = 0f;
+            Rectangle minion = minions.get(0);
+            switch (currentMinionIndex) {
+                case 0: // Прямой выстрел вниз
+                    bossProjectiles.add(createProjectile(
+                        minion.x + minion.width/2 - 8,
+                        minion.y,
+                        0,
+                        -BOSS_PROJECTILE_SPEED
+                    ));
+                    break;
+                case 1: // Веер
+                    for (int i = -1; i <= 1; i++) {
+                        float angle = (float)Math.toRadians(270 + i*20); // 270 — вниз
+                        float vx = (float)Math.cos(angle) * BOSS_PROJECTILE_SPEED;
+                        float vy = (float)Math.sin(angle) * BOSS_PROJECTILE_SPEED;
+                        bossProjectiles.add(createProjectile(
+                            minion.x + minion.width/2 - 8,
+                            minion.y,
+                            vx,
+                            vy
+                        ));
+                    }
+                    break;
+                case 2: // Волна (несколько подряд)
+                    for (int i = 0; i < 3; i++) {
+                        bossProjectiles.add(createProjectile(
+                            minion.x + minion.width/2 - 40 + i*30,
+                            minion.y,
+                            0,
+                            -BOSS_PROJECTILE_SPEED
+                        ));
+                    }
+                    break;
+                case 3: // Прицельно в игрока
+                    float dx = (player.x + player.width/2) - (minion.x + minion.width/2);
+                    float dy = (player.y + player.height/2) - minion.y;
+                    float len = (float)Math.sqrt(dx*dx + dy*dy);
+                    if (len > 0) {
+                        float vx = dx/len * BOSS_PROJECTILE_SPEED;
+                        float vy = dy/len * BOSS_PROJECTILE_SPEED;
+                        bossProjectiles.add(createProjectile(
+                            minion.x + minion.width/2 - 8,
+                            minion.y,
+                            vx,
+                            vy
+                        ));
+                    }
+                    break;
+            }
         }
+    }
 
-        // Пули босса (теперь с постоянной скоростью)
+    // --- Новый метод: фазовые атаки босса ---
+    private void updateBossAttackPattern(float delta) {
+        bossAttackTimer += delta;
+        if (bossAttackTimer >= BOSS_ATTACK_INTERVAL) {
+            bossAttackTimer = 0f;
+            switch (bossAttackPhase) {
+                case 0: // Спираль
+                    float angle = (Gdx.graphics.getFrameId() * 8) % 360;
+                    createSpiralProjectile(angle);
+                    break;
+                case 1: // Веер
+                    createFanAttack(5, 60f);
+                    break;
+                case 2: // Круг
+                    createCircleAttack(12);
+                    break;
+                case 3: // Прицельная
+                    createTargetedAttack(3);
+                    break;
+                case 4: // Волна
+                    createWaveAttack((int)(Gdx.graphics.getFrameId() / 30) % 5);
+                    break;
+            }
+        }
+        // Смена фазы атаки
+        bossAttackPhase = (int)((Gdx.graphics.getFrameId() * Gdx.graphics.getDeltaTime()) / BOSS_PHASE_INTERVAL) % 5;
+    }
+
+    // --- Обновлённый updateProjectiles: теперь учитывает velX/velY ---
+    private void updateProjectiles() {
+        Iterator<Bullet> iter = playerProjectiles.iterator();
+        while (iter.hasNext()) {
+            Bullet projectile = iter.next();
+            projectile.hitbox.x += projectile.velocity.x * Gdx.graphics.getDeltaTime();
+            projectile.hitbox.y += projectile.velocity.y * Gdx.graphics.getDeltaTime();
+            if (projectile.hitbox.y > Gdx.graphics.getHeight() || projectile.hitbox.x < 0 || projectile.hitbox.x > Gdx.graphics.getWidth()) iter.remove();
+        }
         iter = bossProjectiles.iterator();
         while (iter.hasNext()) {
-            Rectangle projectile = iter.next();
-            projectile.y -= BOSS_PROJECTILE_SPEED * Gdx.graphics.getDeltaTime(); // Все летят вниз с одинаковой скоростью
-
-            if (projectile.y < 0) {
+            Bullet projectile = iter.next();
+            projectile.hitbox.x += projectile.velocity.x * Gdx.graphics.getDeltaTime();
+            projectile.hitbox.y += projectile.velocity.y * Gdx.graphics.getDeltaTime();
+            if (projectile.hitbox.y < 0 || projectile.hitbox.x < 0 || projectile.hitbox.x > Gdx.graphics.getWidth() || projectile.hitbox.y > Gdx.graphics.getHeight()) {
                 iter.remove();
             }
         }

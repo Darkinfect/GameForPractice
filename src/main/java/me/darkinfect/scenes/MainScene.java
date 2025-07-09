@@ -29,7 +29,7 @@ public class MainScene implements Screen {
     private Stage stage = new Stage();
     private ImageButton coinButton;
     private Label coinLabel;
-    private static int coins = 0;
+    public static int coins = 0;
     private ImageButton menuButton;
     private Table menu;
     private boolean isMenuVisible = false;
@@ -47,6 +47,19 @@ public class MainScene implements Screen {
     private int clicksToBoss = 0;
     private final int BOSS_TRIGGER_CLICKS = 150;
     private int playerLevel = 1;
+    public int minionStage = 0; // <-- добавлено публичное поле
+    // --- Переменные для апгрейдов ---
+    private int upgradeDamage = 1;
+    private int upgradeMaxHp = 5;
+    private int upgradeCoinsPerClick = 1;
+    private int upgradePassiveIncome = 0;
+    private float passiveIncomeTimer = 0f;
+    private Table upgradeMenu;
+    private boolean isUpgradeMenuVisible = false;
+    private TextButton upgradeButton;
+    private Label upgradeResultLabel;
+    private Table upgradesSubMenu;
+    private boolean isUpgradesSubMenuVisible = false;
     public MainScene(Game game){
         this.game = game;
     }
@@ -73,6 +86,7 @@ public class MainScene implements Screen {
 
         initButton();
         initMenu();
+        initUpgradesSubMenu();
         initUI();
 
         Gdx.input.setInputProcessor(stage);
@@ -83,14 +97,18 @@ public class MainScene implements Screen {
         labelStyle.font = new BitmapFont();
         labelStyle.fontColor = Color.GOLD;
 
+        if (coinLabel != null) {
+            coinLabel.remove(); // удаляем старый лейбл со сцены
+        }
         coinLabel = new Label("Coins: " + coins, labelStyle);
         coinLabel.setPosition(Gdx.graphics.getWidth()-100, Gdx.graphics.getHeight() - 50);
         stage.addActor(coinLabel);
+        updateLabelCoin(); // сразу обновляем текст
     }
 
     private void startBossFight() {
         coinLabel.clear();
-        game.setScreen(new BossFightScene(game));
+        game.setScreen(new BossFightScene(game, minionStage));
     }
 
     private void showMessage(String text) {
@@ -114,9 +132,17 @@ public class MainScene implements Screen {
 
     @Override
     public void render(float delta) {
+        // пассивный доход
+        if (upgradePassiveIncome > 0) {
+            passiveIncomeTimer += delta;
+            if (passiveIncomeTimer >= 1f) {
+                coins += upgradePassiveIncome;
+                updateLabelCoin();
+                passiveIncomeTimer = 0f;
+            }
+        }
         Gdx.gl.glClearColor(0, 0, 0, 1);
         Gdx.gl.glClear(GL20.GL_COLOR_BUFFER_BIT);
-
         batch.begin();
         batch.draw(backgroundTexture, 0, 0, Gdx.graphics.getWidth(), Gdx.graphics.getHeight());
         batch.end();
@@ -154,20 +180,34 @@ public class MainScene implements Screen {
             public void clicked(InputEvent event, float x, float y) {
                 isMenuVisible = !isMenuVisible;
                 menu.setVisible(isMenuVisible);
+                if (isUpgradesSubMenuVisible) {
+                    upgradesSubMenu.setVisible(false);
+                    isUpgradesSubMenuVisible = false;
+                }
             }
         });
         button1.addListener(new ClickListener(){
             @Override
             public void clicked(InputEvent event, float x, float y){
-                if(coins < 10){
-                    return;
-                }
-                coins -= 10;
-                BossFightScene.addplayerlevel(1);
-
+                isUpgradesSubMenuVisible = true;
+                // Позиционируем апгрейд-меню справа от основного меню
+                float menuX = menu.getX();
+                float menuY = menu.getY();
+                float menuWidth = menu.getWidth();
+                upgradesSubMenu.setPosition(menuX + menuWidth + 10, menuY);
+                upgradesSubMenu.setVisible(true);
+                menu.setVisible(false);
+                isMenuVisible = false;
             }
         });
-
+        button2.addListener(new ClickListener(){
+            @Override
+            public void clicked(InputEvent event, float x, float y){
+                // Settings logic here
+                menu.setVisible(false);
+                isMenuVisible = false;
+            }
+        });
         button3.addListener(new ClickListener() {
             @Override
             public void clicked(InputEvent event, float x, float y) {
@@ -177,6 +217,81 @@ public class MainScene implements Screen {
 
         stage.addActor(menuButton);
         stage.addActor(menu);
+    }
+
+    private void initUpgradeMenu() {
+        skin = new Skin(Gdx.files.internal("uiskin.json"));
+        upgradeMenu = new Table(skin);
+        upgradeMenu.setBackground(new TextureRegionDrawable(new TextureRegion(createWhitePixel(Color.LIGHT_GRAY))));
+        upgradeMenu.align(Align.topLeft);
+        upgradeMenu.pad(10);
+        upgradeMenu.setPosition(300, Gdx.graphics.getHeight() - 250);
+        upgradeMenu.setVisible(false);
+
+        Label infoLabel = new Label("Нажмите кнопку, чтобы получить случайное улучшение! (20 монет)", skin);
+        upgradeResultLabel = new Label("", skin);
+        TextButton getUpgradeBtn = new TextButton("Получить улучшение", skin);
+        TextButton closeBtn = new TextButton("Закрыть", skin);
+
+        upgradeMenu.add(infoLabel).padBottom(10).width(300).height(40).row();
+        upgradeMenu.add(upgradeResultLabel).padBottom(10).width(300).height(40).row();
+        upgradeMenu.add(getUpgradeBtn).padBottom(10).width(220).height(50).row();
+        upgradeMenu.add(closeBtn).width(220).height(50);
+
+        getUpgradeBtn.addListener(new ClickListener() {
+            @Override
+            public void clicked(InputEvent event, float x, float y) {
+                if (coins >= 20) {
+                    coins -= 20;
+                    int type = (int)(Math.random() * 4);
+                    String result = "";
+                    switch (type) {
+                        case 0:
+                            upgradeDamage++;
+                            result = "Урон увеличен!";
+                            break;
+                        case 1:
+                            upgradeMaxHp++;
+                            result = "Максимальное HP увеличено!";
+                            break;
+                        case 2:
+                            upgradeCoinsPerClick++;
+                            result = "Больше коинов за клик!";
+                            break;
+                        case 3:
+                            upgradePassiveIncome++;
+                            result = "Пассивный доход увеличен!";
+                            break;
+                    }
+                    updateLabelCoin();
+                    upgradeResultLabel.setText(result);
+                } else {
+                    upgradeResultLabel.setText("Недостаточно монет!");
+                }
+            }
+        });
+        closeBtn.addListener(new ClickListener() {
+            @Override
+            public void clicked(InputEvent event, float x, float y) {
+                isUpgradeMenuVisible = false;
+                upgradeMenu.setVisible(false);
+                upgradeResultLabel.setText("");
+            }
+        });
+        stage.addActor(upgradeMenu);
+
+        // Кнопка для открытия меню апгрейдов
+        upgradeButton = new TextButton("Апгрейды", skin);
+        upgradeButton.setSize(120, 50);
+        upgradeButton.setPosition(120, Gdx.graphics.getHeight() - 70);
+        upgradeButton.addListener(new ClickListener() {
+            @Override
+            public void clicked(InputEvent event, float x, float y) {
+                isUpgradeMenuVisible = !isUpgradeMenuVisible;
+                upgradeMenu.setVisible(isUpgradeMenuVisible);
+            }
+        });
+        stage.addActor(upgradeButton);
     }
 
     private void initButton(){
@@ -199,7 +314,7 @@ public class MainScene implements Screen {
         coinButton.addListener(new ClickListener() {
             @Override
             public void clicked(InputEvent event, float x, float y) {
-                coins++;
+                coins += upgradeCoinsPerClick;
                 updateLabelCoin();
 
                 // Система вызова босса
@@ -213,6 +328,94 @@ public class MainScene implements Screen {
         });
 
         stage.addActor(coinButton);
+    }
+
+    private void initUpgradesSubMenu() {
+        skin = new Skin(Gdx.files.internal("uiskin.json"));
+        upgradesSubMenu = new Table(skin);
+        upgradesSubMenu.setBackground(new TextureRegionDrawable(new TextureRegion(createWhitePixel(Color.WHITE))));
+        upgradesSubMenu.align(Align.topLeft);
+        upgradesSubMenu.pad(10);
+        upgradesSubMenu.setPosition(80, Gdx.graphics.getHeight() - 300);
+        upgradesSubMenu.setVisible(false);
+
+        TextButton dmgBtn = new TextButton("Upgrade Damage (10)", skin);
+        TextButton hpBtn = new TextButton("Upgrade HP (10)", skin);
+        TextButton coinBtn = new TextButton("Upgrade Coins per Click (15)", skin);
+        TextButton passiveBtn = new TextButton("Upgrade Passive Income (20)", skin);
+        TextButton backBtn = new TextButton("Back", skin);
+        Label upgradeMsg = new Label("", skin);
+
+        upgradesSubMenu.add(dmgBtn).padBottom(8).width(220).height(40).row();
+        upgradesSubMenu.add(hpBtn).padBottom(8).width(220).height(40).row();
+        upgradesSubMenu.add(coinBtn).padBottom(8).width(220).height(40).row();
+        upgradesSubMenu.add(passiveBtn).padBottom(8).width(220).height(40).row();
+        upgradesSubMenu.add(upgradeMsg).padBottom(8).width(220).height(30).row();
+        upgradesSubMenu.add(backBtn).width(220).height(40);
+
+        dmgBtn.addListener(new ClickListener() {
+            @Override
+            public void clicked(InputEvent event, float x, float y) {
+                if (coins >= 10) {
+                    coins -= 10;
+                    upgradeDamage++;
+                    updateLabelCoin();
+                    upgradeMsg.setText("Damage upgraded!");
+                } else {
+                    upgradeMsg.setText("Not enough coins!");
+                }
+            }
+        });
+        hpBtn.addListener(new ClickListener() {
+            @Override
+            public void clicked(InputEvent event, float x, float y) {
+                if (coins >= 10) {
+                    coins -= 10;
+                    upgradeMaxHp++;
+                    updateLabelCoin();
+                    upgradeMsg.setText("HP upgraded!");
+                } else {
+                    upgradeMsg.setText("Not enough coins!");
+                }
+            }
+        });
+        coinBtn.addListener(new ClickListener() {
+            @Override
+            public void clicked(InputEvent event, float x, float y) {
+                if (coins >= 15) {
+                    coins -= 15;
+                    upgradeCoinsPerClick++;
+                    updateLabelCoin();
+                    upgradeMsg.setText("Coins per click upgraded!");
+                } else {
+                    upgradeMsg.setText("Not enough coins!");
+                }
+            }
+        });
+        passiveBtn.addListener(new ClickListener() {
+            @Override
+            public void clicked(InputEvent event, float x, float y) {
+                if (coins >= 20) {
+                    coins -= 20;
+                    upgradePassiveIncome++;
+                    updateLabelCoin();
+                    upgradeMsg.setText("Passive income upgraded!");
+                } else {
+                    upgradeMsg.setText("Not enough coins!");
+                }
+            }
+        });
+        backBtn.addListener(new ClickListener() {
+            @Override
+            public void clicked(InputEvent event, float x, float y) {
+                isUpgradesSubMenuVisible = false;
+                upgradesSubMenu.setVisible(false);
+                isMenuVisible = true;
+                menu.setVisible(true);
+                upgradeMsg.setText("");
+            }
+        });
+        stage.addActor(upgradesSubMenu);
     }
 
     private Texture createWhitePixel(Color color) {
