@@ -31,7 +31,15 @@ public class MainMenu implements Screen {
     private final int WINDOW_HEIGHT = 700;
     private com.badlogic.gdx.scenes.scene2d.ui.Image bgImage;
     private Table panelTable;
+    private static MainMenu instance;
 
+    public static MainMenu getInstance(Game game) {
+        if (instance == null) {
+            instance = new MainMenu(game);
+            return instance;
+        }
+        return instance;
+    }
 
     public MainMenu(Game game){
         this.game = game;

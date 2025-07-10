@@ -49,6 +49,8 @@ public class BossFightScene implements Screen {
     private int minionHealth = 20;
     private final int minionMaxHealth = 20;
     private final int bossMaxHealth = 100;
+    private int playerDamage = 1;
+    private int playerMaxHp = 5;
     
     // Для анимации полосы здоровья
     private float displayedPlayerHealth = 5;
@@ -76,13 +78,12 @@ public class BossFightScene implements Screen {
         }
     }
 
-    public BossFightScene(Game game, int minionIndex) {
+    public BossFightScene(Game game, int minionIndex, int playerLevel, int playerDamage, int playerMaxHp) {
         batch = new SpriteBatch();
         playerTexture = new Texture("ship.png");
         bossTexture = new Texture("boss.jpg");
         projectileTexture = new Texture("bullet.jpg");
         background = new Texture("backgroundboss.jpg");
-
 
         // Инициализация игрока и босса
         player = new Rectangle(
@@ -108,13 +109,19 @@ public class BossFightScene implements Screen {
         }
         this.bossHealth = bossMaxHealth;
         this.minionHealth = minionMaxHealth;
+        // --- Передаём апгрейды ---
+        this.playerLevel = playerLevel;
+        this.playerDamage = playerDamage;
+        this.playerMaxHp = playerMaxHp;
+        this.playerHealth = playerMaxHp;
+        this.displayedPlayerHealth = playerMaxHp;
         // Используем шрифт из uiskin, поддерживающий кириллицу
         skin = new Skin(Gdx.files.internal("uiskin.json"));
         messageFont = skin.getFont("default-font");
     }
     // Старый конструктор для обратной совместимости
-    public BossFightScene(Game game) {
-        this(game, 0);
+    public BossFightScene(Game game, int minionIndex) {
+        this(game, minionIndex, MainScene.getIntsance1().playerLevel, MainScene.getIntsance1().upgradeDamage, MainScene.getIntsance1().upgradeMaxHp);
     }
     // Спавн только одного приспешника по индексу
     private void spawnSingleMinion(int index) {
@@ -206,7 +213,7 @@ public class BossFightScene implements Screen {
         batch.setColor(0.8f, 0.8f, 0.8f, 1); // светлый фон полосы
         batch.draw(background, px, py, barWidth, barHeight);
         batch.setColor(0.5f, 1f, 0.5f, 1); // ярко-зелёная полоса
-        batch.draw(background, px, py, barWidth * (displayedPlayerHealth/5f), barHeight);
+        batch.draw(background, px, py, barWidth * (displayedPlayerHealth/(float)playerMaxHp), barHeight);
         batch.setColor(1, 1, 1, 1);
         // --- Полоса здоровья босса/приспешника ---
         if (bossHitFlash > 0f) {
@@ -228,6 +235,9 @@ public class BossFightScene implements Screen {
         String bossText = isBossActive ? ("Boss HP: " + bossHealth + "/" + bossMaxHealth) : ("Minion HP: " + minionHealth + "/" + minionMaxHealth);
         font.draw(batch, bossText, px, by + barHeight + 22);
         font.draw(batch, "Player HP: " + playerHealth, px, py + barHeight + 22);
+        if (isBossActive) {
+            font.draw(batch, "Boss damage: 1", px, by + barHeight + 2);
+        }
         batch.end();
     }
 

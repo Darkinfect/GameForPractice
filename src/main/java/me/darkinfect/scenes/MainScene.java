@@ -19,6 +19,8 @@ import com.badlogic.gdx.scenes.scene2d.ui.*;
 import com.badlogic.gdx.scenes.scene2d.utils.ClickListener;
 import com.badlogic.gdx.scenes.scene2d.utils.TextureRegionDrawable;
 import com.badlogic.gdx.utils.Align;
+import com.badlogic.gdx.audio.Sound;
+import com.badlogic.gdx.audio.Music;
 import com.badlogic.gdx.utils.Timer;
 import me.darkinfect.Main;
 import java.util.ArrayList;
@@ -32,10 +34,13 @@ public class MainScene implements Screen {
     private Stage stage = new Stage();
     private ImageButton coinButton;
     private Label coinLabel;
+    private Label bossClicksLabel;
     public static int coins = 0;
     private ImageButton menuButton;
     private Table menu;
     private boolean isMenuVisible = false;
+    private Music backgroundMusic;
+
 
     // Босс-система
     private boolean bossActive = false;
@@ -49,11 +54,11 @@ public class MainScene implements Screen {
     private Image bossImage;
     private int clicksToBoss = 0;
     private final int BOSS_TRIGGER_CLICKS = 150;
-    private int playerLevel = 1;
+    public int playerLevel = 1;
     public int minionStage = 0; // <-- добавлено публичное поле
     // --- Переменные для апгрейдов ---
-    private int upgradeDamage = 1;
-    private int upgradeMaxHp = 5;
+    public int upgradeDamage = 1;
+    public int upgradeMaxHp = 5;
     private int upgradeCoinsPerClick = 1;
     private int upgradePassiveIncome = 0;
     private float passiveIncomeTimer = 0f;
@@ -121,6 +126,19 @@ public class MainScene implements Screen {
             Gdx.app.log("MainScene", "Failed to load coin_click.wav, sound disabled", e);
             clickSound = null;
         }
+        try {
+            backgroundMusic = Gdx.audio.newMusic(Gdx.files.internal("background_music.mp3"));
+            backgroundMusic.setLooping(true);
+            backgroundMusic.setVolume(SettingsScreen.getMusicVolume() * SettingsScreen.getMasterVolume());
+            if (SettingsScreen.isMusicEnabled()) {
+                backgroundMusic.play();
+            }
+            Gdx.app.log("MainScene", "Фоновая музыка успешно загружена");
+        } catch (Exception e) {
+            Gdx.app.error("MainScene", "Не удалось загрузить background_music.mp3, музыка отключена", e);
+            backgroundMusic = null;
+        }
+
 
 
         initButton();
@@ -134,7 +152,7 @@ public class MainScene implements Screen {
     private void initUI() {
         Label.LabelStyle labelStyle = new Label.LabelStyle();
         labelStyle.font = new BitmapFont();
-        labelStyle.fontColor = Color.GOLD;
+        labelStyle.fontColor = Color.SKY;
 
         if (coinLabel != null) {
             coinLabel.remove(); // удаляем старый лейбл со сцены
@@ -142,6 +160,12 @@ public class MainScene implements Screen {
         coinLabel = new Label("Coins: " + coins, labelStyle);
         coinLabel.setPosition(Gdx.graphics.getWidth()-100, Gdx.graphics.getHeight() - 50);
         stage.addActor(coinLabel);
+        if (bossClicksLabel != null) {
+            bossClicksLabel.remove();
+        }
+        bossClicksLabel = new Label("To boss: " + (100 - (totalClicks % 100)), labelStyle);
+        bossClicksLabel.setPosition(Gdx.graphics.getWidth()-100, Gdx.graphics.getHeight() - 80);
+        stage.addActor(bossClicksLabel);
         updateLabelCoin(); // сразу обновляем текст
     }
 
@@ -153,7 +177,7 @@ public class MainScene implements Screen {
     private void showMessage(String text) {
         Label.LabelStyle messageStyle = new Label.LabelStyle();
         messageStyle.font = new BitmapFont();
-        messageStyle.fontColor = Color.YELLOW;
+        messageStyle.fontColor = Color.SKY;
 
         Label message = new Label(text, messageStyle);
         message.setPosition(
@@ -190,6 +214,17 @@ public class MainScene implements Screen {
                 Gdx.app.log("MainScene", "Эффект частиц завершен через 1 секунду после последнего клика");
             }
         }
+        // Обновление громкости музыки
+        if (backgroundMusic != null) {
+            float volume = SettingsScreen.getMusicVolume() * SettingsScreen.getMasterVolume();
+            backgroundMusic.setVolume(volume);
+            if (SettingsScreen.isMusicEnabled() && !backgroundMusic.isPlaying()) {
+                backgroundMusic.play();
+            } else if (!SettingsScreen.isMusicEnabled() && backgroundMusic.isPlaying()) {
+                backgroundMusic.stop();
+            }
+        }
+
 
         Gdx.gl.glClearColor(0, 0, 0, 1);
         Gdx.gl.glClear(GL20.GL_COLOR_BUFFER_BIT);
@@ -257,6 +292,7 @@ public class MainScene implements Screen {
             @Override
             public void clicked(InputEvent event, float x, float y){
                 // Settings logic here
+                game.setScreen(SettingsScreen.getInstance(game));
                 menu.setVisible(false);
                 isMenuVisible = false;
             }
@@ -350,7 +386,7 @@ public class MainScene implements Screen {
     }
 
     private void initButton(){
-        Texture coinTexture = new Texture(Gdx.files.internal("clickbutton.jpg"));
+        Texture coinTexture = new Texture(Gdx.files.internal("button.jpg"));
         skin.add("coin", coinTexture);
 
         ImageButton.ImageButtonStyle coinButtonStyle = new ImageButton.ImageButtonStyle();
@@ -359,7 +395,7 @@ public class MainScene implements Screen {
 
         coinButton = new ImageButton(coinButtonStyle);
 
-        float buttonSize = Gdx.graphics.getHeight() * 0.1f;
+        float buttonSize = Gdx.graphics.getHeight() * 0.2f;
         coinButton.setSize(buttonSize, buttonSize);
 
         float x = (Gdx.graphics.getWidth() - buttonSize) / 2;
@@ -504,6 +540,9 @@ public class MainScene implements Screen {
     }
     public void updateLabelCoin(){
         coinLabel.setText("Coins: " + coins);
+        if (bossClicksLabel != null) {
+            bossClicksLabel.setText("To boss: " + (100 - (totalClicks % 100)));
+        }
     }
     private void checkAchievements() {
         for (Achievement a : achievements) {
@@ -526,13 +565,26 @@ public class MainScene implements Screen {
     }
 
     @Override
-    public void pause() {}
+    public void pause() {
+        if (backgroundMusic != null && backgroundMusic.isPlaying()) {
+            backgroundMusic.pause();
+        }
+    }
 
     @Override
-    public void resume() {}
+    public void resume() {
+        if (backgroundMusic != null && SettingsScreen.isMusicEnabled() && !backgroundMusic.isPlaying()) {
+            backgroundMusic.play();
+        }
+    }
 
     @Override
-    public void hide() {}
+    public void hide() {
+        if (backgroundMusic != null && backgroundMusic.isPlaying()) {
+            backgroundMusic.stop();
+        }
+    }
+
 
     @Override
     public void dispose() {
@@ -546,9 +598,13 @@ public class MainScene implements Screen {
         if (clickSound != null) {
             clickSound.dispose();
         }
+        if (backgroundMusic != null) {
+            backgroundMusic.dispose();
+        }
         if (bossTexture != null) {
             bossTexture.dispose();
         }
     }
+
 
 }
