@@ -8,6 +8,7 @@ public class Main {
         Lwjgl3ApplicationConfiguration config = new Lwjgl3ApplicationConfiguration();
         config.setWindowIcon("gameicon.png");
         config.setTitle("My Game");
+        config.setWindowedMode(1200, 800); // Увеличиваем размер окна
         new Lwjgl3Application(new ClickerGame(), config);
     }
 }

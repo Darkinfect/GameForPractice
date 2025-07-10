@@ -24,6 +24,7 @@ import com.badlogic.gdx.audio.Music;
 import com.badlogic.gdx.utils.Timer;
 import me.darkinfect.Main;
 import java.util.ArrayList;
+import com.badlogic.gdx.scenes.scene2d.ui.Image;
 
 public class MainScene implements Screen {
     private static MainScene intsance;
@@ -77,6 +78,7 @@ public class MainScene implements Screen {
     private float effectStartTime = -1f;
     private boolean isEffectActive = false;
     private Sound clickSound;
+    private Image aboveButtonImage;
     public MainScene(Game game){
         this.game = game;
     }
@@ -152,18 +154,20 @@ public class MainScene implements Screen {
     private void initUI() {
         Label.LabelStyle labelStyle = new Label.LabelStyle();
         labelStyle.font = new BitmapFont();
-        labelStyle.fontColor = Color.SKY;
+        labelStyle.fontColor = new Color(0.294f, 0f, 0.509f, 1f); // Индиго цвет
 
         if (coinLabel != null) {
             coinLabel.remove(); // удаляем старый лейбл со сцены
         }
         coinLabel = new Label("Coins: " + coins, labelStyle);
+        coinLabel.setFontScale(1.2f);
         coinLabel.setPosition(Gdx.graphics.getWidth()-100, Gdx.graphics.getHeight() - 50);
         stage.addActor(coinLabel);
         if (bossClicksLabel != null) {
             bossClicksLabel.remove();
         }
         bossClicksLabel = new Label("To boss: " + (100 - (totalClicks % 100)), labelStyle);
+        bossClicksLabel.setFontScale(1.2f);
         bossClicksLabel.setPosition(Gdx.graphics.getWidth()-100, Gdx.graphics.getHeight() - 80);
         stage.addActor(bossClicksLabel);
         updateLabelCoin(); // сразу обновляем текст
@@ -177,9 +181,10 @@ public class MainScene implements Screen {
     private void showMessage(String text) {
         Label.LabelStyle messageStyle = new Label.LabelStyle();
         messageStyle.font = new BitmapFont();
-        messageStyle.fontColor = Color.SKY;
+        messageStyle.fontColor = new Color(0.294f, 0f, 0.509f, 1f); // Индиго цвет
 
         Label message = new Label(text, messageStyle);
+        message.setFontScale(1.5f);
         message.setPosition(
                 Gdx.graphics.getWidth()/2 - message.getWidth()/2,
                 Gdx.graphics.getHeight()/2
@@ -246,7 +251,7 @@ public class MainScene implements Screen {
         skin.add("menuButtonStyle", imageButtonStyle);
         menuButton = new ImageButton(skin,"menuButtonStyle");
         menuButton.setPosition(20, Gdx.graphics.getHeight() - 70);
-        menuButton.setSize(50, 50);
+        menuButton.setSize(70, 70);
 
         menu = new Table(skin);
         menu.setBackground(new TextureRegionDrawable(new TextureRegion(createWhitePixel(Color.GRAY))));
@@ -259,9 +264,9 @@ public class MainScene implements Screen {
         TextButton button2 = new TextButton("Settings", skin);
         TextButton button3 = new TextButton("Exit", skin);
 
-        menu.add(button1).padBottom(10).width(200).height(50).row();
-        menu.add(button2).padBottom(10).width(200).height(50).row();
-        menu.add(button3).width(200).height(50);
+        menu.add(button1).padBottom(10).width(300).height(70).row();
+        menu.add(button2).padBottom(10).width(300).height(70).row();
+        menu.add(button3).width(300).height(70);
 
         menuButton.addListener(new ClickListener() {
             @Override
@@ -322,10 +327,10 @@ public class MainScene implements Screen {
         TextButton getUpgradeBtn = new TextButton("Получить улучшение", skin);
         TextButton closeBtn = new TextButton("Закрыть", skin);
 
-        upgradeMenu.add(infoLabel).padBottom(10).width(300).height(40).row();
-        upgradeMenu.add(upgradeResultLabel).padBottom(10).width(300).height(40).row();
-        upgradeMenu.add(getUpgradeBtn).padBottom(10).width(220).height(50).row();
-        upgradeMenu.add(closeBtn).width(220).height(50);
+        upgradeMenu.add(infoLabel).padBottom(10).width(400).height(60).row();
+        upgradeMenu.add(upgradeResultLabel).padBottom(10).width(400).height(60).row();
+        upgradeMenu.add(getUpgradeBtn).padBottom(10).width(320).height(70).row();
+        upgradeMenu.add(closeBtn).width(320).height(70);
 
         getUpgradeBtn.addListener(new ClickListener() {
             @Override
@@ -373,7 +378,7 @@ public class MainScene implements Screen {
 
         // Кнопка для открытия меню апгрейдов
         upgradeButton = new TextButton("Апгрейды", skin);
-        upgradeButton.setSize(120, 50);
+        upgradeButton.setSize(180, 70);
         upgradeButton.setPosition(120, Gdx.graphics.getHeight() - 70);
         upgradeButton.addListener(new ClickListener() {
             @Override
@@ -389,19 +394,27 @@ public class MainScene implements Screen {
         Texture coinTexture = new Texture(Gdx.files.internal("button2.png"));
         skin.add("coin", coinTexture);
 
+        // Добавляем изображение 400x400 выше кнопки на 100 пикселей
+
         ImageButton.ImageButtonStyle coinButtonStyle = new ImageButton.ImageButtonStyle();
         coinButtonStyle.imageUp = new TextureRegionDrawable(new TextureRegion(skin.get("coin", Texture.class)));
         coinButtonStyle.imageDown = new TextureRegionDrawable(new TextureRegion(skin.get("coin", Texture.class)));
+        float buttonSize = Gdx.graphics.getHeight() * 0.2f;
+        float x = (Gdx.graphics.getWidth() - buttonSize) / 2;
+        float y = (Gdx.graphics.getHeight() / 2 - buttonSize) / 2;
 
         coinButton = new ImageButton(coinButtonStyle);
 
-        float buttonSize = Gdx.graphics.getHeight() * 0.2f;
         coinButton.setSize(buttonSize, buttonSize);
-
-        float x = (Gdx.graphics.getWidth() - buttonSize) / 2;
-        float y = (Gdx.graphics.getHeight() / 2 - buttonSize) / 2;
         coinButton.setPosition(x, y);
 
+        Texture aboveTexture = new Texture(Gdx.files.internal("button.jpg"));
+        aboveButtonImage = new Image(aboveTexture);
+        aboveButtonImage.setSize(400, 400);
+        float aboveX = (Gdx.graphics.getWidth() - 400) / 2f;
+        float aboveY = coinButton.getY() + 150 ; // выше кнопки на 100 пикселей
+        aboveButtonImage.setPosition(aboveX, aboveY);
+        stage.addActor(aboveButtonImage);
         coinButton.addListener(new ClickListener() {
             @Override
             public void clicked(InputEvent event, float x, float y) {
@@ -458,12 +471,12 @@ public class MainScene implements Screen {
         TextButton backBtn = new TextButton("Back", skin);
         Label upgradeMsg = new Label("", skin);
 
-        upgradesSubMenu.add(dmgBtn).padBottom(8).width(220).height(40).row();
-        upgradesSubMenu.add(hpBtn).padBottom(8).width(220).height(40).row();
-        upgradesSubMenu.add(coinBtn).padBottom(8).width(220).height(40).row();
-        upgradesSubMenu.add(passiveBtn).padBottom(8).width(220).height(40).row();
-        upgradesSubMenu.add(upgradeMsg).padBottom(8).width(220).height(30).row();
-        upgradesSubMenu.add(backBtn).width(220).height(40);
+        upgradesSubMenu.add(dmgBtn).padBottom(8).width(320).height(60).row();
+        upgradesSubMenu.add(hpBtn).padBottom(8).width(320).height(60).row();
+        upgradesSubMenu.add(coinBtn).padBottom(8).width(320).height(60).row();
+        upgradesSubMenu.add(passiveBtn).padBottom(8).width(320).height(60).row();
+        upgradesSubMenu.add(upgradeMsg).padBottom(8).width(320).height(40).row();
+        upgradesSubMenu.add(backBtn).width(320).height(60);
 
         dmgBtn.addListener(new ClickListener() {
             @Override

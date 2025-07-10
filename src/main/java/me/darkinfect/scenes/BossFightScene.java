@@ -18,6 +18,7 @@ import java.awt.*;
 import java.util.ArrayList;
 import com.badlogic.gdx.graphics.g2d.BitmapFont;
 import com.badlogic.gdx.scenes.scene2d.ui.Skin;
+import com.badlogic.gdx.audio.Sound;
 
 public class BossFightScene implements Screen {
     private Game game;
@@ -62,6 +63,9 @@ public class BossFightScene implements Screen {
     private boolean showDefeatMessage = false;
     private BitmapFont messageFont;
     private Skin skin;
+    private Sound playerShootSound;
+    private Sound bossShootSound;
+    private Sound hitSound;
 
     public static void addplayerlevel(int value){
         playerLevel+=value;
@@ -81,9 +85,9 @@ public class BossFightScene implements Screen {
     public BossFightScene(Game game, int minionIndex, int playerLevel, int playerDamage, int playerMaxHp) {
         batch = new SpriteBatch();
         playerTexture = new Texture("ship.png");
-        bossTexture = new Texture("boss.jpg");
-        projectileTexture = new Texture("bullet.jpg");
-        background = new Texture("backgroundboss.jpg");
+        bossTexture = new Texture("boss.PNG");
+        projectileTexture = new Texture("bullet.png");
+        background = new Texture("backgroundboss.png");
 
         // Инициализация игрока и босса
         player = new Rectangle(
@@ -118,6 +122,28 @@ public class BossFightScene implements Screen {
         // Используем шрифт из uiskin, поддерживающий кириллицу
         skin = new Skin(Gdx.files.internal("uiskin.json"));
         messageFont = skin.getFont("default-font");
+        
+        // Инициализация звуковых эффектов
+        try {
+            playerShootSound = Gdx.audio.newSound(Gdx.files.internal("player_shoot.wav"));
+        } catch (Exception e) {
+            Gdx.app.log("BossFightScene", "Failed to load player_shoot.wav, sound disabled", e);
+            playerShootSound = null;
+        }
+        
+        try {
+            bossShootSound = Gdx.audio.newSound(Gdx.files.internal("boss_shoot.wav"));
+        } catch (Exception e) {
+            Gdx.app.log("BossFightScene", "Failed to load boss_shoot.wav, sound disabled", e);
+            bossShootSound = null;
+        }
+        
+        try {
+            hitSound = Gdx.audio.newSound(Gdx.files.internal("hit.wav"));
+        } catch (Exception e) {
+            Gdx.app.log("BossFightScene", "Failed to load hit.wav, sound disabled", e);
+            hitSound = null;
+        }
     }
     // Старый конструктор для обратной совместимости
     public BossFightScene(Game game, int minionIndex) {
@@ -288,6 +314,10 @@ public class BossFightScene implements Screen {
                 0,
                 PLAYER_PROJECTILE_SPEED
             ));
+            // Воспроизводим звук выстрела игрока
+            if (playerShootSound != null) {
+                playerShootSound.play(0.5f);
+            }
         }
     }
 
@@ -304,6 +334,10 @@ public class BossFightScene implements Screen {
                         projectileIter.remove();
                         minionHealth -= 5 * playerLevel;
                         bossHitFlash = 0.5f;
+                        // Воспроизводим звук попадания
+                        if (hitSound != null) {
+                            hitSound.play(0.3f);
+                        }
                         if (minionHealth <= 0) {
                             minionIter.remove();
                             MainScene.addCoin(MINION_REWARD);
@@ -320,6 +354,10 @@ public class BossFightScene implements Screen {
                     bossHealth -= 5 * playerLevel;
                     bossHitFlash = 0.5f;
                     projectileIter.remove();
+                    // Воспроизводим звук попадания
+                    if (hitSound != null) {
+                        hitSound.play(0.3f);
+                    }
                     if (bossHealth <= 0) {
                         MainScene.addCoin(BOSS_REWARD);
                         MainScene.getIntsance1().updateLabelCoin();
@@ -335,6 +373,10 @@ public class BossFightScene implements Screen {
                 playerHealth--;
                 playerHitFlash = 0.5f;
                 bossProjectiles.remove(projectile);
+                // Воспроизводим звук попадания
+                if (hitSound != null) {
+                    hitSound.play(0.3f);
+                }
                 Gdx.app.log("BossFight", "Player hit!");
                 if (playerHealth <= 0) {
                     // Проигрыш: сообщение, минус 30 золота, сброс minionStage
@@ -405,6 +447,10 @@ public class BossFightScene implements Screen {
                     -BOSS_PROJECTILE_SPEED
                 ));
             }
+            // Воспроизводим звук выстрела босса/миньона
+            if (bossShootSound != null) {
+                bossShootSound.play(0.2f);
+            }
         }
     }
 
@@ -419,6 +465,10 @@ public class BossFightScene implements Screen {
                 (float)Math.sin(rad) * speed,
                 (float)Math.cos(rad) * -speed
         ));
+        // Воспроизводим звук выстрела босса
+        if (bossShootSound != null) {
+            bossShootSound.play(0.3f);
+        }
     }
 
     private void createFanAttack(int count, float spread) {
@@ -436,6 +486,10 @@ public class BossFightScene implements Screen {
                     vx,
                     vy
             ));
+        }
+        // Воспроизводим звук выстрела босса
+        if (bossShootSound != null) {
+            bossShootSound.play(0.3f);
         }
     }
 
@@ -460,6 +514,10 @@ public class BossFightScene implements Screen {
                 ));
             }
         }
+        // Воспроизводим звук выстрела босса
+        if (bossShootSound != null) {
+            bossShootSound.play(0.3f);
+        }
     }
 
     private void createCircleAttack(int count) {
@@ -477,6 +535,10 @@ public class BossFightScene implements Screen {
                     vx,
                     vy
             ));
+        }
+        // Воспроизводим звук выстрела босса
+        if (bossShootSound != null) {
+            bossShootSound.play(0.3f);
         }
     }
 
@@ -500,6 +562,10 @@ public class BossFightScene implements Screen {
                     speed,
                     0
             ));
+        }
+        // Воспроизводим звук выстрела босса
+        if (bossShootSound != null) {
+            bossShootSound.play(0.3f);
         }
     }
 
@@ -561,6 +627,10 @@ public class BossFightScene implements Screen {
                     }
                     break;
             }
+            // Воспроизводим звук выстрела миньона
+            if (bossShootSound != null) {
+                bossShootSound.play(0.2f);
+            }
         }
     }
 
@@ -618,6 +688,15 @@ public class BossFightScene implements Screen {
         playerTexture.dispose();
         bossTexture.dispose();
         projectileTexture.dispose();
+        if (playerShootSound != null) {
+            playerShootSound.dispose();
+        }
+        if (bossShootSound != null) {
+            bossShootSound.dispose();
+        }
+        if (hitSound != null) {
+            hitSound.dispose();
+        }
     }
 
 
