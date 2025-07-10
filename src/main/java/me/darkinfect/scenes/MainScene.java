@@ -19,11 +19,9 @@ import com.badlogic.gdx.scenes.scene2d.ui.*;
 import com.badlogic.gdx.scenes.scene2d.utils.ClickListener;
 import com.badlogic.gdx.scenes.scene2d.utils.TextureRegionDrawable;
 import com.badlogic.gdx.utils.Align;
-import com.badlogic.gdx.audio.Sound;
 import com.badlogic.gdx.audio.Music;
-import com.badlogic.gdx.utils.Timer;
 import com.badlogic.gdx.Input;
-import me.darkinfect.Main;
+import com.badlogic.gdx.audio.Sound;
 import java.util.ArrayList;
 import com.badlogic.gdx.scenes.scene2d.ui.Image;
 
@@ -70,15 +68,16 @@ public class MainScene implements Screen {
     private Label upgradeResultLabel;
     private Table upgradesSubMenu;
     private boolean isUpgradesSubMenuVisible = false;
-    private ArrayList<Achievement> achievements = new ArrayList<>();
-    private int totalClicks = 0;
-    private int upgradesBought = 0;
-    private int bossesKilled = 0;
+    private static ArrayList<Achievement> achievements = new ArrayList<>();
+    private static int totalClicks = 0;
+    private static int upgradesBought = 0;
+    public static int bossesKilled = 0;
     // --- Переменные для ачивок ---
     private ParticleEffect clickEffect;
     private float effectStartTime = -1f;
     private boolean isEffectActive = false;
     private Sound clickSound;
+    private Sound achievementSound;
     private Image aboveButtonImage;
     public MainScene(Game game){
         this.game = game;
@@ -104,13 +103,20 @@ public class MainScene implements Screen {
         batch = new SpriteBatch();
         skin = new Skin();
 
-        // --- Инициализация ачивок ---
-        achievements.clear();
-        achievements.add(new Achievement("First Click!", "Make your first click."));
-        achievements.add(new Achievement("Click Master", "Make 1000 clicks."));
-        achievements.add(new Achievement("Boss Slayer", "Defeat a boss for the first time."));
-        achievements.add(new Achievement("Upgrade Fan", "Buy 5 upgrades."));
-        achievements.add(new Achievement("Wealthy", "Accumulate 1000 coins."));
+        // --- Инициализация ачивок (только при первом запуске) ---
+        if (achievements.isEmpty()) {
+            achievements.add(new Achievement("first_click", "First Click", "Make your first click", Achievement.AchievementType.CLICKS, 1, 10));
+            achievements.add(new Achievement("click_master", "Click Master", "Make 1000 clicks", Achievement.AchievementType.CLICKS, 1000, 100));
+            achievements.add(new Achievement("click_expert", "Click Expert", "Make 5000 clicks", Achievement.AchievementType.CLICKS, 5000, 500));
+            achievements.add(new Achievement("boss_slayer", "Boss Slayer", "Defeat your first boss", Achievement.AchievementType.BOSSES, 1, 200));
+            achievements.add(new Achievement("boss_master", "Boss Master", "Defeat 5 bosses", Achievement.AchievementType.BOSSES, 5, 1000));
+            achievements.add(new Achievement("upgrade_fan", "Upgrade Fan", "Buy 5 upgrades", Achievement.AchievementType.UPGRADES, 5, 150));
+            achievements.add(new Achievement("upgrade_master", "Upgrade Master", "Buy 20 upgrades", Achievement.AchievementType.UPGRADES, 20, 500));
+            achievements.add(new Achievement("wealthy", "Wealthy", "Accumulate 1000 coins", Achievement.AchievementType.COINS, 1000, 200));
+            achievements.add(new Achievement("millionaire", "Millionaire", "Accumulate 10000 coins", Achievement.AchievementType.COINS, 10000, 2000));
+            achievements.add(new Achievement("speed_clicker", "Speed Clicker", "Make 100 clicks in 10 seconds", Achievement.AchievementType.SPECIAL, 100, 300));
+            achievements.add(new Achievement("survivor", "Survivor", "Defeat a boss with 1 HP", Achievement.AchievementType.SPECIAL, 1, 500));
+        }
         // Initialize particles
         clickEffect = new ParticleEffect();
         try {
@@ -128,6 +134,14 @@ public class MainScene implements Screen {
         } catch (Exception e) {
             Gdx.app.log("MainScene", "Failed to load coin_click.wav, sound disabled", e);
             clickSound = null;
+        }
+        
+        // Initialize achievement sound
+        try {
+            achievementSound = Gdx.audio.newSound(Gdx.files.internal("achievement.wav"));
+        } catch (Exception e) {
+            Gdx.app.log("MainScene", "Failed to load achievement.wav, sound disabled", e);
+            achievementSound = null;
         }
         try {
             backgroundMusic = Gdx.audio.newMusic(Gdx.files.internal("background_music.mp3"));
@@ -182,13 +196,17 @@ public class MainScene implements Screen {
     private void showMessage(String text) {
         Label.LabelStyle messageStyle = new Label.LabelStyle();
         messageStyle.font = new BitmapFont();
-        messageStyle.fontColor = new Color(0.294f, 0f, 0.509f, 1f); // Индиго цвет
+        messageStyle.fontColor = Color.GOLD; // Золотой цвет
 
         Label message = new Label(text, messageStyle);
         message.setFontScale(1.5f);
+        
+        // Позиционируем сообщение под кнопкой монет
+        float buttonY = coinButton.getY();
+        float messageY = buttonY - 80; // 80 пикселей под кнопкой
         message.setPosition(
                 Gdx.graphics.getWidth()/2 - message.getWidth()/2,
-                Gdx.graphics.getHeight()/2
+                messageY
         );
         stage.addActor(message);
 
@@ -296,18 +314,23 @@ public class MainScene implements Screen {
         menu.setVisible(false);
 
         TextButton button1 = new TextButton("Upgrades", skin);
-        TextButton button2 = new TextButton("Settings", skin);
-        TextButton button3 = new TextButton("Exit", skin);
+        TextButton button2 = new TextButton("Achievements", skin);
+        TextButton button3 = new TextButton("Settings", skin);
+        TextButton button4 = new TextButton("Exit", skin);
 
         menu.add(button1).padBottom(10).width(300).height(70).row();
         menu.add(button2).padBottom(10).width(300).height(70).row();
-        menu.add(button3).width(300).height(70);
+        menu.add(button3).padBottom(10).width(300).height(70).row();
+        menu.add(button4).width(300).height(70);
 
         menuButton.addListener(new ClickListener() {
             @Override
             public void clicked(InputEvent event, float x, float y) {
                 isMenuVisible = !isMenuVisible;
                 menu.setVisible(isMenuVisible);
+                if (isMenuVisible) {
+                    menu.toFront();
+                }
                 if (isUpgradesSubMenuVisible) {
                     upgradesSubMenu.setVisible(false);
                     isUpgradesSubMenuVisible = false;
@@ -331,13 +354,21 @@ public class MainScene implements Screen {
         button2.addListener(new ClickListener(){
             @Override
             public void clicked(InputEvent event, float x, float y){
+                game.setScreen(new AchievementsScreen(game, achievements));
+                menu.setVisible(false);
+                isMenuVisible = false;
+            }
+        });
+        button3.addListener(new ClickListener(){
+            @Override
+            public void clicked(InputEvent event, float x, float y){
                 // Settings logic here
                 game.setScreen(SettingsScreen.getInstance(game));
                 menu.setVisible(false);
                 isMenuVisible = false;
             }
         });
-        button3.addListener(new ClickListener() {
+        button4.addListener(new ClickListener() {
             @Override
             public void clicked(InputEvent event, float x, float y) {
                 Gdx.app.exit();
@@ -519,7 +550,9 @@ public class MainScene implements Screen {
                 if (coins >= 10) {
                     coins -= 10;
                     upgradeDamage++;
+                    upgradesBought++;
                     updateLabelCoin();
+                    checkAchievements();
                     upgradeMsg.setText("Damage upgraded!");
                 } else {
                     upgradeMsg.setText("Not enough coins!");
@@ -532,7 +565,9 @@ public class MainScene implements Screen {
                 if (coins >= 10) {
                     coins -= 10;
                     upgradeMaxHp++;
+                    upgradesBought++;
                     updateLabelCoin();
+                    checkAchievements();
                     upgradeMsg.setText("HP upgraded!");
                 } else {
                     upgradeMsg.setText("Not enough coins!");
@@ -545,7 +580,9 @@ public class MainScene implements Screen {
                 if (coins >= 15) {
                     coins -= 15;
                     upgradeCoinsPerClick++;
+                    upgradesBought++;
                     updateLabelCoin();
+                    checkAchievements();
                     upgradeMsg.setText("Coins per click upgraded!");
                 } else {
                     upgradeMsg.setText("Not enough coins!");
@@ -558,7 +595,9 @@ public class MainScene implements Screen {
                 if (coins >= 20) {
                     coins -= 20;
                     upgradePassiveIncome++;
+                    upgradesBought++;
                     updateLabelCoin();
+                    checkAchievements();
                     upgradeMsg.setText("Passive income upgraded!");
                 } else {
                     upgradeMsg.setText("Not enough coins!");
@@ -595,17 +634,158 @@ public class MainScene implements Screen {
     private void checkAchievements() {
         for (Achievement a : achievements) {
             if (!a.isUnlocked()) {
-                if (a.getName().equals("First Click!") && totalClicks >= 1) unlockAchievement(a);
-                if (a.getName().equals("Click Master") && totalClicks >= 1000) unlockAchievement(a);
-                if (a.getName().equals("Boss Slayer") && bossesKilled >= 1) unlockAchievement(a);
-                if (a.getName().equals("Upgrade Fan") && upgradesBought >= 5) unlockAchievement(a);
-                if (a.getName().equals("Wealthy") && coins >= 1000) unlockAchievement(a);
+                switch (a.getType()) {
+                    case CLICKS:
+                        a.updateProgress(totalClicks);
+                        break;
+                    case COINS:
+                        a.updateProgress(coins);
+                        break;
+                    case BOSSES:
+                        a.updateProgress(bossesKilled);
+                        break;
+                    case UPGRADES:
+                        a.updateProgress(upgradesBought);
+                        break;
+                    case TIME:
+                        // Время игры можно добавить позже
+                        break;
+                    case SPECIAL:
+                        checkSpecialAchievements(a);
+                        break;
+                }
+                
+                if (a.isUnlocked()) {
+                    unlockAchievement(a);
+                }
             }
         }
     }
+    
+    private void checkSpecialAchievements(Achievement a) {
+        switch (a.getId()) {
+            case "speed_clicker":
+                // Проверка скоростного кликера (нужно добавить логику)
+                break;
+            case "survivor":
+                // Проверка выжившего (нужно добавить логику)
+                break;
+        }
+    }
+    
     private void unlockAchievement(Achievement a) {
-        a.unlock();
-        showMessage("Achievement unlocked: " + a.getName());
+        coins += a.getRewardCoins();
+        updateLabelCoin();
+        
+        // Воспроизводим звук достижения
+        if (SettingsScreen.isSoundEnabled() && achievementSound != null) {
+            achievementSound.play(SettingsScreen.getSoundVolume() * 0.3f);
+        }
+        
+        showMessage("Achievement unlocked: " + a.getName() + " (+" + a.getRewardCoins() + " coins)");
+    }
+    
+    private void showAchievementsMenu() {
+        // Создаем отдельное окно с достижениями
+        Table achievementsWindow = new Table(skin);
+        achievementsWindow.setBackground(new TextureRegionDrawable(new TextureRegion(createWhitePixel(Color.DARK_GRAY))));
+        achievementsWindow.align(Align.topLeft);
+        achievementsWindow.pad(30);
+        achievementsWindow.setPosition(Gdx.graphics.getWidth()/2 - 450, Gdx.graphics.getHeight()/2 - 400);
+        achievementsWindow.setSize(900, 800);
+        
+        // Заголовок окна
+        Label titleLabel = new Label("ACHIEVEMENTS", skin);
+        titleLabel.setFontScale(2.5f);
+        titleLabel.setColor(Color.CYAN);
+        achievementsWindow.add(titleLabel).padBottom(30).row();
+        
+        // Создаем скроллируемую область для достижений
+        Table achievementsContainer = new Table(skin);
+        achievementsContainer.align(Align.topLeft);
+        
+        int unlockedCount = 0;
+        int totalCount = achievements.size();
+        
+        for (Achievement achievement : achievements) {
+            if (achievement.isUnlocked()) {
+                unlockedCount++;
+            }
+            
+            // Создаем карточку для каждого достижения
+            Table achievementCard = new Table(skin);
+            Color cardColor = achievement.isUnlocked() ? new Color(0.2f, 0.8f, 0.2f, 0.3f) : new Color(0.3f, 0.3f, 0.3f, 0.3f);
+            achievementCard.setBackground(new TextureRegionDrawable(new TextureRegion(createWhitePixel(cardColor))));
+            achievementCard.pad(15);
+            achievementCard.align(Align.topLeft);
+            
+            // Название достижения
+            Label nameLabel = new Label(achievement.getName(), skin);
+            nameLabel.setFontScale(1.3f);
+            nameLabel.setColor(achievement.isUnlocked() ? Color.GOLD : Color.CYAN);
+            
+            // Описание
+            Label descLabel = new Label(achievement.getDescription(), skin);
+            descLabel.setFontScale(1.0f);
+            descLabel.setColor(Color.WHITE);
+            
+            // Прогресс
+            Label progressLabel = new Label(achievement.getProgressText(), skin);
+            progressLabel.setFontScale(1.1f);
+            progressLabel.setColor(achievement.isUnlocked() ? Color.GREEN : Color.YELLOW);
+            
+            // Награда
+            Label rewardLabel = new Label("Reward: " + achievement.getRewardCoins() + " coins", skin);
+            rewardLabel.setFontScale(1.0f);
+            rewardLabel.setColor(Color.CYAN);
+            
+            // Добавляем элементы в карточку
+            achievementCard.add(nameLabel).padBottom(8).row();
+            achievementCard.add(descLabel).padBottom(8).row();
+            achievementCard.add(progressLabel).padBottom(8).row();
+            achievementCard.add(rewardLabel).padBottom(5).row();
+            
+            // Добавляем карточку в контейнер
+            achievementsContainer.add(achievementCard).width(800).height(120).padBottom(10).row();
+        }
+        
+        // Статистика
+        Label statsLabel = new Label("Progress: " + unlockedCount + "/" + totalCount + " achievements unlocked", skin);
+        statsLabel.setFontScale(1.2f);
+        statsLabel.setColor(Color.CYAN);
+        achievementsWindow.add(statsLabel).padBottom(20).row();
+        
+        // Добавляем контейнер с достижениями
+        achievementsWindow.add(achievementsContainer).expand().fill().row();
+        
+        // Кнопки управления
+        Table buttonTable = new Table(skin);
+        
+        TextButton closeButton = new TextButton("Close", skin);
+        closeButton.addListener(new ClickListener() {
+            @Override
+            public void clicked(InputEvent event, float x, float y) {
+                achievementsWindow.remove();
+            }
+        });
+        
+        TextButton refreshButton = new TextButton("Refresh", skin);
+        refreshButton.addListener(new ClickListener() {
+            @Override
+            public void clicked(InputEvent event, float x, float y) {
+                achievementsWindow.remove();
+                showAchievementsMenu();
+            }
+        });
+        
+        buttonTable.add(closeButton).width(150).height(50).padRight(10);
+        buttonTable.add(refreshButton).width(150).height(50);
+        
+        achievementsWindow.add(buttonTable).padTop(20);
+        
+        // Добавляем окно на сцену
+        stage.addActor(achievementsWindow);
+        achievementsWindow.toFront();
     }
     @Override
     public void resize(int width, int height) {
@@ -645,6 +825,9 @@ public class MainScene implements Screen {
         }
         if (clickSound != null) {
             clickSound.dispose();
+        }
+        if (achievementSound != null) {
+            achievementSound.dispose();
         }
         if (backgroundMusic != null) {
             backgroundMusic.dispose();
