@@ -22,10 +22,10 @@ public class SettingsScreen implements Screen {
     private Table table;
 
     // Настройки (можно сохранять в Preferences)
-    private boolean soundEnabled = true;
-    private boolean vibrationEnabled = true;
-    private float musicVolume = 0.7f;
-    private float soundVolume = 0.8f;
+    private static boolean soundEnabled = true;
+    private static boolean vibrationEnabled = true;
+    private static float musicVolume = 0.7f;
+    private static float soundVolume = 0.8f;
 
     public SettingsScreen(Game game) {
         this.game = game;
@@ -183,4 +183,12 @@ public class SettingsScreen implements Screen {
         musicVolume = prefs.getFloat("musicVolume", 0.7f);
         soundVolume = prefs.getFloat("soundVolume", 0.8f);
     }
+    public static boolean isSoundEnabled() {
+        return soundEnabled;
+    }
+
+    public static float getSoundVolume() {
+        return soundVolume;
+    }
+
 }

@@ -3,11 +3,13 @@ package me.darkinfect.scenes;
 import com.badlogic.gdx.Game;
 import com.badlogic.gdx.Gdx;
 import com.badlogic.gdx.Screen;
+import com.badlogic.gdx.audio.Sound;
 import com.badlogic.gdx.graphics.Color;
 import com.badlogic.gdx.graphics.GL20;
 import com.badlogic.gdx.graphics.Pixmap;
 import com.badlogic.gdx.graphics.Texture;
 import com.badlogic.gdx.graphics.g2d.BitmapFont;
+import com.badlogic.gdx.graphics.g2d.ParticleEffect;
 import com.badlogic.gdx.graphics.g2d.SpriteBatch;
 import com.badlogic.gdx.graphics.g2d.TextureRegion;
 import com.badlogic.gdx.scenes.scene2d.InputEvent;
@@ -66,6 +68,10 @@ public class MainScene implements Screen {
     private int upgradesBought = 0;
     private int bossesKilled = 0;
     // --- Переменные для ачивок ---
+    private ParticleEffect clickEffect;
+    private float effectStartTime = -1f;
+    private boolean isEffectActive = false;
+    private Sound clickSound;
     public MainScene(Game game){
         this.game = game;
     }
@@ -97,6 +103,25 @@ public class MainScene implements Screen {
         achievements.add(new Achievement("Boss Slayer", "Defeat a boss for the first time."));
         achievements.add(new Achievement("Upgrade Fan", "Buy 5 upgrades."));
         achievements.add(new Achievement("Wealthy", "Accumulate 1000 coins."));
+        // Initialize particles
+        clickEffect = new ParticleEffect();
+        try {
+            clickEffect.load(Gdx.files.internal("coin_spark.p"), Gdx.files.internal(""));
+            clickEffect.allowCompletion();
+            Gdx.app.log("MainScene", "Эффект частиц успешно загружен");
+        } catch (Exception e) {
+            Gdx.app.error("MainScene", "Не удалось загрузить эффект частиц: " + e.getMessage(), e);
+            clickEffect = null;
+        }
+
+        // Initialize sound
+        try {
+            clickSound = Gdx.audio.newSound(Gdx.files.internal("coin_click.wav"));
+        } catch (Exception e) {
+            Gdx.app.log("MainScene", "Failed to load coin_click.wav, sound disabled", e);
+            clickSound = null;
+        }
+
 
         initButton();
         initMenu();
@@ -155,10 +180,24 @@ public class MainScene implements Screen {
                 passiveIncomeTimer = 0f;
             }
         }
+        // Update particles
+        if (clickEffect != null && isEffectActive) {
+            clickEffect.update(delta);
+            float currentTime = Gdx.graphics.getRawDeltaTime();// Текущее время кадра
+            if (currentTime - effectStartTime >= 1.0f) {
+                isEffectActive = false;
+                clickEffect.reset();
+                Gdx.app.log("MainScene", "Эффект частиц завершен через 1 секунду после последнего клика");
+            }
+        }
+
         Gdx.gl.glClearColor(0, 0, 0, 1);
         Gdx.gl.glClear(GL20.GL_COLOR_BUFFER_BIT);
         batch.begin();
         batch.draw(backgroundTexture, 0, 0, Gdx.graphics.getWidth(), Gdx.graphics.getHeight());
+        if (clickEffect != null && isEffectActive) {
+            clickEffect.draw(batch);
+        }
         batch.end();
         stage.act(delta);
         stage.draw();
@@ -334,6 +373,31 @@ public class MainScene implements Screen {
                 updateLabelCoin();
                 totalClicks++;
                 checkAchievements();
+                // Анимация кнопки
+                coinButton.addAction(Actions.sequence(
+                        Actions.scaleTo(1.2f, 1.2f, 0.1f),
+                        Actions.scaleTo(1.0f, 1.0f, 0.1f)
+                ));
+
+                // Start particles
+                if (clickEffect != null) {
+                    clickEffect.reset(); // Сбрасываем текущий эффект
+                    clickEffect.setPosition(coinButton.getX() + coinButton.getWidth() / 2, coinButton.getY() + coinButton.getHeight() / 2);
+                    clickEffect.start();
+                    isEffectActive = true;
+                    effectStartTime = Gdx.graphics.getRawDeltaTime(); // Обновляем время последнего клика
+                    Gdx.app.log("MainScene", "Эффект частиц запущен/перезапущен");
+                }
+
+                // Play sound
+                if (SettingsScreen.isSoundEnabled() && clickSound != null) {
+                    clickSound.play(SettingsScreen.getSoundVolume());
+                }
+
+                // --- БОССФАЙТ ПО КЛИКАМ ---
+                if (totalClicks > 0 && totalClicks % 100 == 0) {
+                    startBossFight();
+                }
             }
         });
 
@@ -476,6 +540,15 @@ public class MainScene implements Screen {
         backgroundTexture.dispose();
         stage.dispose();
         skin.dispose();
-        bossTexture.dispose();
+        if (clickEffect != null) {
+            clickEffect.dispose();
+        }
+        if (clickSound != null) {
+            clickSound.dispose();
+        }
+        if (bossTexture != null) {
+            bossTexture.dispose();
+        }
     }
+
 }
