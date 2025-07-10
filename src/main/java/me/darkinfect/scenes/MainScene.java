@@ -97,7 +97,7 @@ public class MainScene implements Screen {
     }
     @Override
     public void show() {
-        backgroundTexture = new Texture(Gdx.files.internal("background.jpg"));
+        backgroundTexture = new Texture(Gdx.files.internal("background.png"));
         batch = new SpriteBatch();
         skin = new Skin();
 
@@ -240,7 +240,7 @@ public class MainScene implements Screen {
 
     private void initMenu(){
         skin = new Skin(Gdx.files.internal("uiskin.json"));
-        Texture buttonTexture = new Texture(Gdx.files.internal("menu.jpg"));
+        Texture buttonTexture = new Texture(Gdx.files.internal("menu.png"));
         ImageButton.ImageButtonStyle imageButtonStyle = new ImageButton.ImageButtonStyle();
         imageButtonStyle.imageUp = new TextureRegionDrawable(new TextureRegion(buttonTexture));
         skin.add("menuButtonStyle", imageButtonStyle);
@@ -386,7 +386,7 @@ public class MainScene implements Screen {
     }
 
     private void initButton(){
-        Texture coinTexture = new Texture(Gdx.files.internal("button.jpg"));
+        Texture coinTexture = new Texture(Gdx.files.internal("button2.png"));
         skin.add("coin", coinTexture);
 
         ImageButton.ImageButtonStyle coinButtonStyle = new ImageButton.ImageButtonStyle();
