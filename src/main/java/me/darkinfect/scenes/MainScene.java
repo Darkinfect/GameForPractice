@@ -22,6 +22,7 @@ import com.badlogic.gdx.utils.Align;
 import com.badlogic.gdx.audio.Sound;
 import com.badlogic.gdx.audio.Music;
 import com.badlogic.gdx.utils.Timer;
+import com.badlogic.gdx.Input;
 import me.darkinfect.Main;
 import java.util.ArrayList;
 import com.badlogic.gdx.scenes.scene2d.ui.Image;
@@ -200,6 +201,40 @@ public class MainScene implements Screen {
 
     @Override
     public void render(float delta) {
+        // Проверяем нажатие пробела для заработка монет
+        if (Gdx.input.isKeyJustPressed(Input.Keys.SPACE)) {
+            coins += upgradeCoinsPerClick;
+            updateLabelCoin();
+            totalClicks++;
+            checkAchievements();
+            
+            // Анимация кнопки
+            coinButton.addAction(Actions.sequence(
+                    Actions.scaleTo(1.2f, 1.2f, 0.1f),
+                    Actions.scaleTo(1.0f, 1.0f, 0.1f)
+            ));
+
+            // Start particles
+            if (clickEffect != null) {
+                clickEffect.reset(); // Сбрасываем текущий эффект
+                clickEffect.setPosition(coinButton.getX() + coinButton.getWidth() / 2, coinButton.getY() + coinButton.getHeight() / 2);
+                clickEffect.start();
+                isEffectActive = true;
+                effectStartTime = Gdx.graphics.getRawDeltaTime(); // Обновляем время последнего клика
+                Gdx.app.log("MainScene", "Эффект частиц запущен/перезапущен");
+            }
+
+            // Play sound
+            if (SettingsScreen.isSoundEnabled() && clickSound != null) {
+                clickSound.play(SettingsScreen.getSoundVolume());
+            }
+
+            // --- БОССФАЙТ ПО КЛИКАМ ---
+            if (totalClicks > 0 && totalClicks % 100 == 0) {
+                startBossFight();
+            }
+        }
+        
         // пассивный доход
         if (upgradePassiveIncome > 0) {
             passiveIncomeTimer += delta;
